@@ -11,17 +11,18 @@
 static int mapstarted = 0;
 static void *cziptr;
 static off_t mapoffset = 0;
+static off_t fileoffset = 0;
 
 static void startmap() {
-    czifileoffset = 0;
+    czifileoffset = fileoffset = 0;
     cziptr = mmap(NULL, MAPSIZE, PROT_READ, MAP_PRIVATE, czifd,
-                  czifileoffset);
+                  fileoffset);
 
     if (cziptr == MAP_FAILED)
         err(1, "could not map memory");
 
     mapstarted = 1;
-    czifileoffset += MAPSIZE;
+    fileoffset += MAPSIZE;
     mapoffset = 0;
 }
 
@@ -31,18 +32,22 @@ static void mapforward() {
         err(1, "could not unmap memory");
 
     cziptr = mmap(cziptr, MAPSIZE, PROT_READ, MAP_PRIVATE, czifd,
-                  czifileoffset);
+                  fileoffset);
 
     if (cziptr == MAP_FAILED)
         err(1, "could not map memory");
 
-    czifileoffset += MAPSIZE;
+    fileoffset += MAPSIZE;
     mapoffset = 0;
 }
 
 /* memory-mapped file interface */
-void xread(void *buf, size_t nbytes) {
+int xread(void *buf, size_t nbytes) {
     void *ptr = buf;
+
+    if ((czifileoffset + nbytes) > czifilesize)
+        return -1;
+    
     /* map the file if not already done so */
     if (!mapstarted)
         startmap();
@@ -53,15 +58,37 @@ void xread(void *buf, size_t nbytes) {
         memcpy(ptr, (cziptr + mapoffset), MAPSIZE - mapoffset);
         nbytes -= (MAPSIZE - mapoffset);
         ptr += (MAPSIZE - mapoffset);
+        czifileoffset += (MAPSIZE - mapoffset);
         mapforward();
     }
     
     memcpy(ptr, (cziptr + mapoffset), nbytes);
+    czifileoffset += nbytes;
     mapoffset += nbytes;
     
-    return;
+    return 0;
 }
 
+/* seek forward a given number of bytes -- this does not report errors */
+void xseek(off_t nbytes) {
+
+    if ((czifileoffset + nbytes) > czifilesize)
+        return;
+
+    if (!mapstarted)
+        startmap();
+
+    while ((mapoffset + nbytes) > MAPSIZE) {
+        nbytes -= (MAPSIZE - mapoffset);
+        czifileoffset += (MAPSIZE - mapoffset);
+        mapforward();
+    }
+
+    czifileoffset += nbytes;
+    mapoffset += nbytes;
+
+    return;
+}
 
 
 

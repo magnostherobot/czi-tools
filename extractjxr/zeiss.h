@@ -3,19 +3,21 @@
 #include <stdint.h>
 #include <uuid/uuid.h>
 
-/*
- * Data structures for handling Zeiss CZI files.
- *
- * Written by David Miller, based on code by Callum Duff.
- */
-
-/*
- * This code is somewhat non-portable -- it will only work on little-endian
- * machines. The compiler is told not to pad the structs so we can read an
- * entire structure in one go.
- */
+/* data structures */
 
 #define PACKED __attribute__ ((__packed__))
+
+/* segment type */
+enum czi_seg_t {
+    ZISRAWFILE,
+    ZISRAWDIRECTORY,
+    ZISRAWSUBBLOCK,
+    ZISRAWMETADATA,
+    ZISRAWATTACH,
+    ZISRAWATTDIR,
+    DELETED,
+    UNKNOWN
+};
 
 /* CZI segment header */
 struct czi_seg_header {
@@ -113,5 +115,9 @@ struct czi_attach_dir {
     char reserved[252];
     struct czi_attach_entry *att_entries;
 } PACKED;
+
+/* CZI handling functions */
+
+enum czi_seg_t czi_getsegid(struct czi_seg_header *);
 
 #endif /* _ZEISS_H */

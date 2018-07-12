@@ -26,16 +26,14 @@
 #include "mmap.h"
 
 struct czi_seg_header header;
-long czifilesize;
-
 
 void usage() {
-    fprintf(stdout, "Usage: extractjxr <options>\n\n"
+    dprintf(STDOUT_FILENO, "Usage: extractjxr <options>\n\n"
             "   -i <file>   input Zeiss CZI file\n"
             "   -d <dir>    directory for extracted JXR files\n"
             "   -h          print this help message\n"
             "   -j <file>   write CZI metadata to JSON file\n\n"
-            " -i and -d are mandatory, -j is optional.\n"
+            " -i is mandatory, -d and -j are optional.\n"
             );
     exit(0);
 }
@@ -43,7 +41,16 @@ void usage() {
 /* process the next file segment */
 int next_segment() {
 
-    /* detect end of file */
+    if (xread((void*) &header, sizeof(header)) == -1)
+        return -1;
+
+    switch (czi_getsegid(&header)) {
+    case ZISRAWFILE:
+        break;
+    case UNKNOWN:
+        errx(1, "FAILED TO PARSE SEGMENT HEADER: %s", header.name);
+        break;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -51,17 +58,20 @@ int main(int argc, char *argv[]) {
     char *czifn = NULL;
     char *dirfn = NULL;
     char *jsonfn = NULL;
+    struct stat statb;
 
     if ((page_size = sysconf(_SC_PAGESIZE)) < 0)
         err(1, "could not get system page size");
 
     dojson = 0;
+    doextract = 0;
     
     /* argument handling */
     
     while ((ch = getopt(argc, argv, "+d:hi:j:")) != -1) {
         switch (ch) {
         case 'd':
+            doextract = 1;
             dirfn = optarg;
             break;
         case 'h':
@@ -82,12 +92,20 @@ int main(int argc, char *argv[]) {
     if (argc > optind)
         errx(1, "too many arguments (pass '-h' for help)");
 
-    if (!czifn || !dirfn)
+    if (!czifn)
         errx(1, "missing arguments (pass '-h' for help)");
+
+    if (!dojson && !doextract)
+        errx(1, "missing arguments (one of '-d' and '-j' requried -- pass '-h' for help");
     
     if ((czifd = open(czifn, O_RDONLY)) < 0)
         err(1, "could not open input CZI file %s", czifn);
 
+    if (fstat(czifd, &statb) < 0)
+        err(1, "could not read input file size");
+
+    czifilesize = statb.st_size;
+    
     if ((dirfd = open(dirfn, O_RDONLY | O_DIRECTORY)) < 0)
         err(1, "could not open output directory %s", dirfn);
 

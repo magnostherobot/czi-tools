@@ -4,6 +4,7 @@
 #define MAPSIZE (page_size * 4)        /* number of pages to be mapped at one time */
 long page_size;
 
-void xread(void *, size_t);
+int xread(void *, size_t);
+void xseek(off_t);
 
 #endif /* _MMAP_H */
