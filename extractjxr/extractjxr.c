@@ -1,5 +1,4 @@
 
-
 /*
  * Extract JpegXR tiles from a Zeiss CZI file.
  *
@@ -12,7 +11,6 @@
  * to copy data structures between memory regions.
  */
 
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <err.h>
@@ -21,10 +19,15 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "zeiss.h"
+#include "extractjxr.h"
+#include "mmap.h"
+
+struct czi_seg_header header;
+long czifilesize;
+
 
 void usage() {
     fprintf(stdout, "Usage: extractjxr <options>\n\n"
@@ -37,17 +40,23 @@ void usage() {
     exit(0);
 }
 
+/* process the next file segment */
+int next_segment() {
+
+    /* detect end of file */
+}
+
 int main(int argc, char *argv[]) {
     int ch;
-    int czifd;
-    int dirfd;
-    int jsonfd;
-    int dojson = 0;
-    
     char *czifn = NULL;
     char *dirfn = NULL;
     char *jsonfn = NULL;
 
+    if ((page_size = sysconf(_SC_PAGESIZE)) < 0)
+        err(1, "could not get system page size");
+
+    dojson = 0;
+    
     /* argument handling */
     
     while ((ch = getopt(argc, argv, "+d:hi:j:")) != -1) {
@@ -66,7 +75,7 @@ int main(int argc, char *argv[]) {
             jsonfn = optarg;
             break;
         default:
-            errx(1, "Error parsing arguments (pass '-h' for help)");
+            errx(1, "error parsing arguments (pass '-h' for help)");
         }
     }
 
@@ -85,6 +94,10 @@ int main(int argc, char *argv[]) {
     if (dojson)
         if ((jsonfd = open(jsonfn, O_WRONLY | O_TRUNC | O_CREAT, 0644)) < 0)
             err(1, "could not open output JSON file %s", jsonfd);
+
+    while (next_segment() == 0);
+
+    exit(0);
 }
 
 
