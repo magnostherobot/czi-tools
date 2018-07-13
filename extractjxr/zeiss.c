@@ -1,10 +1,12 @@
 
+#include <err.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "zeiss.h"
 #include "mmap.h"
 #include "json.h"
+#include "macros.h"
 
 static int extractfd = -1;
 
@@ -44,8 +46,17 @@ enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
 }
 
 void czi_process_zrf(struct czi_seg_header *header) {
+    struct czi_zrf data;
+
     calljson(start_sh, header);
+
+    if (xread((void*)&data, sizeof(data)) == -1)
+        ferrx1(1, "could not read ZISRAWFILE segment");
+    
+    calljson(write_zrf, &data);
     calljson0(finish_sh);
+
+    xseek(header->allocated_size);
 }
 
 

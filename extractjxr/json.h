@@ -11,7 +11,9 @@ void czi_json_finish();
 
 #define JSON_GEN_FUNCS \
 X(start_sh, (struct czi_seg_header *)) \
-X(finish_sh, ())
+X(finish_sh, ()) \
+X(write_zrf, (struct czi_zrf *)) \
+X(write_uuid, (uuid_t))
 
 #define X(name, sig) void czi_json_ ## name  sig;
 JSON_GEN_FUNCS

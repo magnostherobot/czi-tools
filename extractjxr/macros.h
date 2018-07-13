@@ -7,4 +7,6 @@
 #define ferr1(s, msg) err(s, "%s: " msg, __func__)
 #define ferrx1(s, msg) errx(s, "%s: " msg, __func__)
 
+#define strstrlen(x)  (x), strlen(x)
+
 #endif /* _MACROS_H */
