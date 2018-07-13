@@ -2,7 +2,7 @@ CC ?= gcc
 CFLAGS ?= -Og -g3
 LDFLAGS ?= 
 BINNAME ?= extractjxr
-OBJECTS = extractjxr.o mmap.o zeiss.o
+OBJECTS = extractjxr.o mmap.o zeiss.o json.o
 LIBS ?= 
 
 all: $(BINNAME)

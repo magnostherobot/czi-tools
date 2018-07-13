@@ -9,7 +9,4 @@ int czifd;
 int dirfd;
 int jsonfd;
 
-int doextract;
-int dojson;
-
 #endif /* _EXTRACT_JXR_H */

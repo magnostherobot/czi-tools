@@ -24,6 +24,7 @@
 #include "zeiss.h"
 #include "extractjxr.h"
 #include "mmap.h"
+#include "json.h"
 
 struct czi_seg_header header;
 
@@ -46,6 +47,7 @@ int next_segment() {
 
     switch (czi_getsegid(&header)) {
     case ZISRAWFILE:
+        czi_process_zrf(&header);
         break;
     case UNKNOWN:
         errx(1, "FAILED TO PARSE SEGMENT HEADER: %s", header.name);
@@ -54,7 +56,7 @@ int next_segment() {
 }
 
 int main(int argc, char *argv[]) {
-    int ch;
+    int ch, doextract, dojson;
     char *czifn = NULL;
     char *dirfn = NULL;
     char *jsonfn = NULL;
@@ -113,6 +115,9 @@ int main(int argc, char *argv[]) {
         if ((jsonfd = open(jsonfn, O_WRONLY | O_TRUNC | O_CREAT, 0644)) < 0)
             err(1, "could not open output JSON file %s", jsonfd);
 
+    czi_set_json(dojson);
+    czi_start_yajl();
+    
     while (next_segment() == 0);
 
     exit(0);

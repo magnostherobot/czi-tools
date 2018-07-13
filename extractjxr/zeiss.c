@@ -6,6 +6,16 @@
 #include "mmap.h"
 #include "extractjxr.h"
 
+static int doextract;
+
+void czi_set_extract(int val) {
+    doextract = val;
+}
+
+int czi_doing_extraction() {
+    return doextract;
+}
+
 enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
     if (strcmp(header->name, "ZISRAWSUBBLOCK") == 0) {
         return ZISRAWSUBBLOCK;
