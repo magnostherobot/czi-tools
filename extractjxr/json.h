@@ -2,10 +2,10 @@
 #define _JSON_H
 
 
-void czi_set_json(int);
-int czi_doing_json();
+void czi_json_setfd(int);
+int czi_json_getfd();
 
-void czi_start_yajl();
+void czi_json_start();
 
 
 #endif /* _JSON_H */

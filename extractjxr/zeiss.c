@@ -4,16 +4,15 @@
 
 #include "zeiss.h"
 #include "mmap.h"
-#include "extractjxr.h"
 
-static int doextract;
+static int extractfd = -1;
 
-void czi_set_extract(int val) {
-    doextract = val;
+void czi_extract_setfd(int val) {
+    extractfd = val;
 }
 
-int czi_doing_extraction() {
-    return doextract;
+int czi_extract_getfd() {
+    return extractfd;
 }
 
 enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
@@ -41,6 +40,11 @@ enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
     else {
         return UNKNOWN;
     }
+}
+
+void czi_process_zrf(struct czi_seg_header *header) {
+
+
 }
 
 

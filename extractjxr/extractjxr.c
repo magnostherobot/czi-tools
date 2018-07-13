@@ -22,7 +22,6 @@
 #include <unistd.h>
 
 #include "zeiss.h"
-#include "extractjxr.h"
 #include "mmap.h"
 #include "json.h"
 
@@ -50,20 +49,17 @@ int next_segment() {
         czi_process_zrf(&header);
         break;
     case UNKNOWN:
-        errx(1, "FAILED TO PARSE SEGMENT HEADER: %s", header.name);
+        errx(1, "next_segment: failed to parse segment header: %s", header.name);
         break;
     }
 }
 
 int main(int argc, char *argv[]) {
     int ch, doextract, dojson;
+    int czifd, dirfd, jsonfd;
     char *czifn = NULL;
     char *dirfn = NULL;
     char *jsonfn = NULL;
-    struct stat statb;
-
-    if ((page_size = sysconf(_SC_PAGESIZE)) < 0)
-        err(1, "could not get system page size");
 
     dojson = 0;
     doextract = 0;
@@ -103,20 +99,23 @@ int main(int argc, char *argv[]) {
     if ((czifd = open(czifn, O_RDONLY)) < 0)
         err(1, "could not open input CZI file %s", czifn);
 
-    if (fstat(czifd, &statb) < 0)
-        err(1, "could not read input file size");
+    if (mapsetup(czifd) < 0)
+        errx(1, "could not initialise memory mapping information");
 
-    czifilesize = statb.st_size;
-    
-    if ((dirfd = open(dirfn, O_RDONLY | O_DIRECTORY)) < 0)
-        err(1, "could not open output directory %s", dirfn);
+    if (doextract) {
+        if ((dirfd = open(dirfn, O_RDONLY | O_DIRECTORY)) < 0)
+            err(1, "could not open output directory %s", dirfn);
 
-    if (dojson)
+        czi_extract_setfd(dirfd);
+    }
+
+    if (dojson) {
         if ((jsonfd = open(jsonfn, O_WRONLY | O_TRUNC | O_CREAT, 0644)) < 0)
             err(1, "could not open output JSON file %s", jsonfd);
 
-    czi_set_json(dojson);
-    czi_start_yajl();
+        czi_json_setfd(jsonfd);
+        czi_json_start();
+    }
     
     while (next_segment() == 0);
 

@@ -118,6 +118,11 @@ struct czi_attach_dir {
 
 /* CZI handling functions */
 
+void czi_extract_setfd(int);
+int czi_extract_getfd();
+
 enum czi_seg_t czi_getsegid(struct czi_seg_header *);
+
+void czi_process_zrf(struct czi_seg_header *);
 
 #endif /* _ZEISS_H */

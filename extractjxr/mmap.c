@@ -1,43 +1,70 @@
 
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "mmap.h"
-#include "extractjxr.h"
 
-static int mapstarted = 0;
-static void *cziptr;
-static off_t mapoffset = 0;
-static off_t fileoffset = 0;
+#define MAPSIZE (page_size * 4)        /* number of pages to be mapped at one time */
+static long page_size;
+static off_t czifileoffset;  /* number of bytes read from file */
+static long czifilesize;     /* file size */
+
+static int czifd;
+
+static int mapstarted = 0;   /* mapping started flag */
+static void *cziptr;         /* mapping pointer */
+static off_t mapoffset = 0;  /* number of bytes read in the current mapping */
+static off_t nextchunk = 0;  /* starting offset of the next mapping chunk to read */
+
+int mapsetup(int fd) {
+    struct stat statb;
+
+    if ((page_size = sysconf(_SC_PAGESIZE)) < 0) {
+        warn("mapsetup: could not get system page size");
+        return -1;
+    }
+
+    if (fstat(fd, &statb) < 0) {
+        warn("mapsetup: could not read input file size");
+        return -1;
+    }
+
+    czifilesize = statb.st_size;
+    
+    czifd = fd;
+    return 0;
+}
 
 static void startmap() {
-    czifileoffset = fileoffset = 0;
+    czifileoffset = nextchunk = 0;
     cziptr = mmap(NULL, MAPSIZE, PROT_READ, MAP_PRIVATE, czifd,
-                  fileoffset);
+                  nextchunk);
 
     if (cziptr == MAP_FAILED)
-        err(1, "could not map memory");
+        err(1, "startmap: could not map memory");
 
     mapstarted = 1;
-    fileoffset += MAPSIZE;
+    nextchunk += MAPSIZE;
     mapoffset = 0;
 }
 
 /* move our mapping forwards in the file */
 static void mapforward() {
     if (munmap(cziptr, MAPSIZE) < 0)
-        err(1, "could not unmap memory");
+        err(1, "mapforward: could not unmap memory");
 
     cziptr = mmap(cziptr, MAPSIZE, PROT_READ, MAP_PRIVATE, czifd,
-                  fileoffset);
+                  nextchunk);
 
     if (cziptr == MAP_FAILED)
-        err(1, "could not map memory");
+        err(1, "mapforward: could not map memory");
 
-    fileoffset += MAPSIZE;
+    nextchunk += MAPSIZE;
     mapoffset = 0;
 }
 
