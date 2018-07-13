@@ -26,12 +26,12 @@ int mapsetup(int fd) {
     struct stat statb;
 
     if ((page_size = sysconf(_SC_PAGESIZE)) < 0) {
-        warn("mapsetup: could not get system page size");
+        warn("\nmapsetup: could not get system page size");
         return -1;
     }
 
     if (fstat(fd, &statb) < 0) {
-        warn("mapsetup: could not read input file size");
+        warn("\nmapsetup: could not read input file size");
         return -1;
     }
 
@@ -191,12 +191,12 @@ int mapsetup(int fd) {
     struct stat statb;
 
     if ((page_size = sysconf(_SC_PAGESIZE)) < 0) {
-        warn("mapsetup: could not get system page size");
+        warn("\nmapsetup: could not get system page size");
         return -1;
     }
 
     if (fstat(fd, &statb) < 0) {
-        warn("mapsetup: could not read input file size");
+        warn("\nmapsetup: could not read input file size");
         return -1;
     }
 
@@ -205,7 +205,7 @@ int mapsetup(int fd) {
 
     if ((cziptr = mmap(NULL, round_up(filesize, page_size), PROT_READ,
                        MAP_SHARED, czifd, 0)) == MAP_FAILED)
-        warn("mapsetup: could not map memory");
+        warn("\nmapsetup: could not map memory");
 
     fileoffset = 0;
     mapstarted = 1;
@@ -227,7 +227,7 @@ int xread(void *buf, size_t nbytes) {
  * to the output fd */
 int xwrite(int fd, size_t nbytes) {
     if (!mapstarted || (fileoffset + nbytes) > filesize) {
-        warnx("xwrite: invalid argument");
+        warnx("\nxwrite: invalid argument");
         return -1;
     }
     
@@ -235,7 +235,7 @@ int xwrite(int fd, size_t nbytes) {
 
     if ((ptr = mmap(NULL, round_up(nbytes, page_size), PROT_READ | PROT_WRITE,
                     MAP_SHARED, fd, 0)) == MAP_FAILED) {
-        warn("xwrite: could not map memory");
+        warn("\nxwrite: could not map memory");
         return -1;
     }
 
@@ -244,7 +244,7 @@ int xwrite(int fd, size_t nbytes) {
     fileoffset += nbytes;
 
     if (munmap(ptr, round_up(nbytes, page_size)) < 0) {
-        warn("xwrite: could not unmap memory");
+        warn("\nxwrite: could not unmap memory");
         return -1;
     }
     

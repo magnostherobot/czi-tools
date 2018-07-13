@@ -120,6 +120,8 @@ int czi_extract_getfd();
 
 enum czi_seg_t czi_getsegid(struct czi_seg_header *);
 
+int czi_check_sblk_metadata(struct czi_subblock *);
+
 void czi_process_zrf();
 void czi_process_directory();
 void czi_process_subblock();

@@ -49,9 +49,23 @@ static void extract_data(char *fname, uint64_t size) {
         ferrx(1, "could not write data to output file \"%s\"", fname);
     
     if (close(fd) == -1)
-        warn("extract_data: could not close file descriptor %u to output "
+        warn("\nextract_data: could not close file descriptor %u to output "
              "file \"%s\" (continuing anyway...)",
              fd, fname);
+}
+
+/* check if a subblock has interesting metadata */
+int czi_check_sblk_metadata(struct czi_subblock *sblk) {
+    int rv;
+    char buf[12];
+
+    if (xread(&buf, 12))
+        ferrx1(1, "could not read tile metadata");
+
+    rv = strncmp(buf, "<METADATA />", 12);
+    xseek_backward(12);
+
+    return (rv != 0);
 }
 
 enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
@@ -176,7 +190,7 @@ void czi_process_subblock() {
     
     /* twiddle file offset */
     offset = xseek_offset() - offset;
-    offset = 240 - offset;
+    offset = 256 - offset;
     if (offset > 0)
         xseek_forward(offset);
 
@@ -238,11 +252,15 @@ void czi_process_subblock() {
 
     /* then jump into the scary heavy lifting */
     if (extractfd != -1) {
-        if (sblk.metadata_size > 0)
+        if (czi_check_sblk_metadata(&sblk))
             extract_data(fnames.metadata, sblk.metadata_size);
-        if (sblk.data_size > 0)
+        else
+            xseek_forward(sblk.metadata_size);
+
+        if (sblk.data_size != 0)
             extract_data(fnames.data, sblk.data_size);
-        if (sblk.attachment_size > 0)
+
+        if (sblk.attachment_size != 0)
             extract_data(fnames.attach, sblk.attachment_size);
     }
         

@@ -229,9 +229,9 @@ void czi_json_write_subblock(struct czi_subblock *sblk, char *mname, char *dname
     yg_s("DataSize");       yg_i(sblk->data_size);
     yg_s("DirectoryEntry"); czi_json_write_dir_entry(&sblk->dir_entry);
 
-    yg_s("Metadata");    if (sblk->metadata_size > 0) yg_s(mname);   else yg_s("empty");
-    yg_s("Data");        if (sblk->data_size > 0) yg_s(dname);       else yg_s("empty");
-    yg_s("Attachments"); if (sblk->attachment_size > 0) yg_s(aname); else yg_s("empty");
+    yg_s("Metadata");    if (czi_check_sblk_metadata(sblk)) yg_s(mname); else yg_s("empty");
+    yg_s("Data");        if (sblk->data_size > 0)           yg_s(dname); else yg_s("empty");
+    yg_s("Attachments"); if (sblk->attachment_size > 0)     yg_s(aname); else yg_s("empty");
     
     yg_m_close();
 }
