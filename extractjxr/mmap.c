@@ -68,6 +68,22 @@ static void mapforward() {
     mapoffset = 0;
 }
 
+/* move our mapping backwards in the file */
+static void mapbackward() {
+    if (munmap(cziptr, MAPSIZE) < 0)
+        err(1, "mapforward: could not unmap memory");
+
+    nextchunk -= (2 * MAPSIZE);
+    
+    cziptr = mmap(cziptr, MAPSIZE, PROT_READ, MAP_PRIVATE, czifd,
+                  nextchunk);
+
+    if (cziptr == MAP_FAILED)
+        err(1, "mapforward: could not map memory");
+
+    mapoffset = MAPSIZE;
+}
+
 /* memory-mapped file interface */
 int xread(void *buf, size_t nbytes) {
     void *ptr = buf;
@@ -97,7 +113,7 @@ int xread(void *buf, size_t nbytes) {
 }
 
 /* seek forward a given number of bytes -- this does not report errors */
-void xseek(off_t nbytes) {
+void xseek_forward(off_t nbytes) {
 
     if ((czifileoffset + nbytes) > czifilesize)
         return;
@@ -117,6 +133,45 @@ void xseek(off_t nbytes) {
     return;
 }
 
+/* seek backwards a given number of bytes */
+void xseek_backward(off_t nbytes) {
+    if (nbytes > czifileoffset)
+        return;
+
+    if (!mapstarted)
+        return;
+
+    while (nbytes > mapoffset) {
+        nbytes -= MAPSIZE;
+        czifileoffset -= MAPSIZE;
+        mapbackward();
+    }
+
+    czifileoffset -= nbytes;
+    mapoffset -= nbytes;
+
+    return;
+}
+
+/* seek to a given position within the file */
+void xseek_set(off_t pos) {
+    if (pos > czifilesize)
+        return;
+    else if (pos == czifileoffset)
+        return;
+
+    if (pos > czifileoffset)
+        xseek_forward(pos - czifileoffset);
+    else
+        xseek_backward(czifileoffset - pos);
+    
+    return;
+}
+
+/* report current file offset */
+off_t xseek_offset() {
+    return czifileoffset;
+}
 
 
 

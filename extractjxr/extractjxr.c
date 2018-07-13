@@ -24,6 +24,7 @@
 #include "zeiss.h"
 #include "mmap.h"
 #include "json.h"
+#include "macros.h"
 
 struct czi_seg_header header;
 
@@ -40,18 +41,32 @@ void usage() {
 
 /* process the next file segment */
 int next_segment() {
-
+    off_t next_segment;
+    
     if (xread((void*) &header, sizeof(header)) == -1)
         return -1;
 
+    next_segment = xseek_offset() + header.allocated_size;
+    
+    calljson(start_sh, &header);
+    
     switch (czi_getsegid(&header)) {
     case ZISRAWFILE:
         czi_process_zrf(&header);
         break;
+    case ZISRAWDIRECTORY:
+        czi_process_directory(&header);
+        break;
+    case DELETED:
+        calljson0(write_deleted);
+        break;
     case UNKNOWN:
-        errx(1, "next_segment: failed to parse segment header: %s", header.name);
+        ferrx(1, "failed to parse segment header: %s", header.name);
         break;
     }
+
+    calljson0(finish_sh);
+    xseek_set(next_segment);
 }
 
 int main(int argc, char *argv[]) {
@@ -117,7 +132,9 @@ int main(int argc, char *argv[]) {
         czi_json_start();
     }
     
-    while (next_segment() == 0);
+    //    while (next_segment() == 0);
+    next_segment();
+    next_segment();
 
     if (dojson) {
         czi_json_finish();

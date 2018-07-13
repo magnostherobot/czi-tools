@@ -31,10 +31,10 @@ static yajl_gen gen;
     if (yajl_gen_array_close(gen) != yajl_gen_status_ok) \
         ferrx1(1, "could not open JSON array")
 
-static inline void yg_s(const char *str, size_t len) {
-    if (yajl_gen_string(gen, str, len) != yajl_gen_status_ok)
-        ferrx(1, "could not write string value \"%s\"", str);
-}
+#define yg_s(str) \
+    if (yajl_gen_string(gen, str, strlen(str)) != yajl_gen_status_ok) \
+        ferrx(1, "could not write string value \"%s\"", str)
+
 
 #define yg_i(i) \
     if (yajl_gen_integer(gen, i) != yajl_gen_status_ok) \
@@ -94,10 +94,10 @@ void czi_json_finish() {
 
 void czi_json_start_sh(struct czi_seg_header *header) {
     yg_m_open();
-    yg_s(strstrlen("Id"));            yg_s(header->name, strlen(header->name));
-    yg_s(strstrlen("AllocatedSize")); yg_i(header->allocated_size);
-    yg_s(strstrlen("UsedSize"));      yg_i(header->used_size);
-    yg_s(strstrlen("Data"));
+    yg_s("Id");            yg_s(header->name);
+    yg_s("AllocatedSize"); yg_i(header->allocated_size);
+    yg_s("UsedSize");      yg_i(header->used_size);
+    yg_s("Data");
 }
 
 void czi_json_finish_sh() {
@@ -107,17 +107,17 @@ void czi_json_finish_sh() {
 void czi_json_write_zrf(struct czi_zrf *zrf) {
     yg_m_open();
 
-    yg_s(strstrlen("Major"));             yg_i(zrf->major);
-    yg_s(strstrlen("Minor"));             yg_i(zrf->minor);
-    yg_s(strstrlen("Reserved1"));         yg_i(zrf->reserved1);
-    yg_s(strstrlen("Reserved2"));         yg_i(zrf->reserved2);
-    yg_s(strstrlen("PrimaryFileGuid"));   czi_json_write_uuid(zrf->primary_file_guid);
-    yg_s(strstrlen("FileGuid"));          czi_json_write_uuid(zrf->file_guid);
-    yg_s(strstrlen("FilePart"));          yg_i(zrf->file_part);
-    yg_s(strstrlen("DirectoryPosition")); yg_i(zrf->directory_position);
-    yg_s(strstrlen("MetadataPosition"));  yg_i(zrf->metadata_position);
-    yg_s(strstrlen("UpdatePending"));     yg_i(zrf->update_pending);
-    yg_s(strstrlen("AttachmentDirectoryPosition")); yg_i(zrf->attachment_directory_position);
+    yg_s("Major");             yg_i(zrf->major);
+    yg_s("Minor");             yg_i(zrf->minor);
+    yg_s("Reserved1");         yg_i(zrf->reserved1);
+    yg_s("Reserved2");         yg_i(zrf->reserved2);
+    yg_s("PrimaryFileGuid");   czi_json_write_uuid(zrf->primary_file_guid);
+    yg_s("FileGuid");          czi_json_write_uuid(zrf->file_guid);
+    yg_s("FilePart");          yg_i(zrf->file_part);
+    yg_s("DirectoryPosition"); yg_i(zrf->directory_position);
+    yg_s("MetadataPosition");  yg_i(zrf->metadata_position);
+    yg_s("UpdatePending");     yg_i(zrf->update_pending);
+    yg_s("AttachmentDirectoryPosition"); yg_i(zrf->attachment_directory_position);
     
     yg_m_close();
 }
@@ -130,4 +130,95 @@ void czi_json_write_uuid(uuid_t data) {
     
     yg_a_close();
 }
+
+void czi_json_write_deleted() {
+    yg_m_open();
+    yg_m_close();
+}
+
+void czi_json_write_directory(struct czi_directory *dir) {
+    char reserved[125];
+
+    memcpy(reserved, dir->reserved, 124);
+    reserved[124] = '\0';
+    
+    yg_m_open();
+
+    yg_s("EntryCount"); yg_i(dir->entry_count);
+    yg_s("Reserved");   yg_s(reserved);
+    yg_s("Entry");      yg_a_open();
+
+    for (uint32_t i = 0; i < dir->entry_count; i++)
+        czi_json_write_dir_entry(&dir->dir_entries[i]);
+
+    yg_a_close();
+    
+    yg_m_close();
+}
+
+void czi_json_write_dir_entry(struct czi_subblock_direntry *ent) {
+    char schema_type[3] = {ent->schema[0], ent->schema[1], '\0'};
+#ifdef CALLUM_COMPAT
+    char *spareptr;
+#endif
+    
+    yg_m_open();
+
+    yg_s("SchemaType");   yg_s(schema_type);
+    yg_s("PixelType");    yg_i(ent->pixel_type);
+    yg_s("FilePosition"); yg_i(ent->file_position);
+    yg_s("FilePart");     yg_i(ent->file_part);
+    yg_s("Compression");  yg_i(ent->compression);
+    yg_s("PyramidType");  yg_i(ent->pyramid_type);
+
+#ifdef CALLUM_COMPAT
+    if (asprintf(&spareptr, "%d %d %d %d",
+                 ent->reserved2[0],
+                 ent->reserved2[1],
+                 ent->reserved2[2],
+                 ent->reserved2[3]) == -1)
+        ferr1(1, "could not allocate memory for \"spare2\" region of directory entry");
+    
+    yg_s("spare1"); yg_i((unsigned int)ent->reserved1);
+    yg_s("spare2"); yg_s(spareptr);
+
+    free(spareptr);
+#else
+    yg_s("Reserved1"); yg_i((unsigned int)ent->reserved1);
+    yg_s("Reserved2"); yg_a_open();
+    
+    for (int i = 0; i < 4; i++)
+        yg_i((unsigned int) ent->reserved2[i]);
+
+    yg_a_close();
+#endif
+
+    yg_s("DimensionCount");   yg_i(ent->dimension_count);
+    yg_s("DimensionEntries"); yg_a_open();
+
+    for (uint32_t i = 0; i < ent->dimension_count; i++)
+        czi_json_write_dim_entry(&ent->dim_entries[i]);
+    
+    yg_a_close();
+    
+    yg_m_close();
+}
+
+void czi_json_write_dim_entry(struct czi_subblock_dimentry *dim) {
+    char dimension[5];
+
+    memcpy(dimension, dim->dimension, 4);
+    dimension[4] = '\0';
+    
+    yg_m_open();
+
+    yg_s("Dimension");       yg_s(dimension);
+    yg_s("Start");           yg_i(dim->start);
+    yg_s("Size");            yg_i(dim->size);
+    yg_s("StartCoordinate"); yajl_gen_double(gen, (double)dim->start_coordinate);
+    yg_s("StoredSize");      yg_i(dim->stored_size);
+    
+    yg_m_close();
+}
+
 

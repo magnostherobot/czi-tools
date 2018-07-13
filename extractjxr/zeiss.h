@@ -64,7 +64,7 @@ struct czi_subblock_direntry {
     uint64_t file_position;
     uint32_t file_part;
     uint32_t compression;
-    char pyramidType;
+    char pyramid_type;
     char reserved1;
     char reserved2[4];
     uint32_t dimension_count;
@@ -124,5 +124,6 @@ int czi_extract_getfd();
 enum czi_seg_t czi_getsegid(struct czi_seg_header *);
 
 void czi_process_zrf(struct czi_seg_header *);
+void czi_process_directory(struct czi_seg_header *);
 
 #endif /* _ZEISS_H */
