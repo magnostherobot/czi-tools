@@ -76,10 +76,7 @@ struct czi_subblock {
     uint32_t metadata_size;
     uint32_t attachment_size;
     uint64_t data_size;
-    struct czi_subblock_direntry *dir_entry;
-    char *metadata;
-    void *data;
-    void *attachments;
+    struct czi_subblock_direntry dir_entry;  /* ACHTUNG: not a pointer! */
 } PACKED;
 
 /* CZI ZISRAWDIRECTORY segment -- subblock directory information */
@@ -123,7 +120,8 @@ int czi_extract_getfd();
 
 enum czi_seg_t czi_getsegid(struct czi_seg_header *);
 
-void czi_process_zrf(struct czi_seg_header *);
-void czi_process_directory(struct czi_seg_header *);
+void czi_process_zrf();
+void czi_process_directory();
+void czi_process_subblock();
 
 #endif /* _ZEISS_H */

@@ -10,14 +10,15 @@ void czi_json_start();
 void czi_json_finish();
 
 #define JSON_GEN_FUNCS \
-    X(start_sh, (struct czi_seg_header *))                      \
-    X(finish_sh, ())                                            \
-    X(write_zrf, (struct czi_zrf *))                            \
-    X(write_uuid, (uuid_t))                                     \
-    X(write_deleted, ())                                        \
-    X(write_directory, (struct czi_directory *))                \
-    X(write_dir_entry, (struct czi_subblock_direntry *))        \
-    X(write_dim_entry, (struct czi_subblock_dimentry *))
+    X(start_sh, (struct czi_seg_header *))                              \
+    X(finish_sh, ())                                                    \
+    X(write_zrf, (struct czi_zrf *))                                    \
+    X(write_uuid, (uuid_t))                                             \
+    X(write_deleted, ())                                                \
+    X(write_directory, (struct czi_directory *))                        \
+    X(write_dir_entry, (struct czi_subblock_direntry *))                \
+    X(write_dim_entry, (struct czi_subblock_dimentry *))                \
+    X(write_subblock, (struct czi_subblock *, char *, char *, char *))
 
 
 #define X(name, sig) void czi_json_ ## name  sig;

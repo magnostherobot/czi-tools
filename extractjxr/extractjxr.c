@@ -39,9 +39,33 @@ void usage() {
     exit(0);
 }
 
+void status_update() {
+    static long this_pct = 0;
+    static long last_pct = 0;
+    static int started = 0;
+
+    if (!started) {
+        started = 1;
+
+        dprintf(STDOUT_FILENO, "Processing input file:    0%");
+    }
+
+    this_pct = ((100 * xseek_offset()) / xseek_size());
+    if (this_pct > last_pct) {
+        last_pct = this_pct;
+        dprintf(STDOUT_FILENO, "\b\b\b\b%3lu%%", this_pct);
+    }
+
+    if (xseek_offset() == xseek_size()) {
+        dprintf(STDOUT_FILENO, "\n");
+    }
+}
+
 /* process the next file segment */
 int next_segment() {
     off_t next_segment;
+
+    status_update();
     
     if (xread((void*) &header, sizeof(header)) == -1)
         return -1;
@@ -52,21 +76,27 @@ int next_segment() {
     
     switch (czi_getsegid(&header)) {
     case ZISRAWFILE:
-        czi_process_zrf(&header);
+        czi_process_zrf();
         break;
     case ZISRAWDIRECTORY:
-        czi_process_directory(&header);
+        czi_process_directory();
         break;
+    case ZISRAWSUBBLOCK:
+        czi_process_subblock();
     case DELETED:
-        calljson0(write_deleted);
+//        calljson0(write_deleted);
         break;
-    case UNKNOWN:
-        ferrx(1, "failed to parse segment header: %s", header.name);
+//    case UNKNOWN:
+        /*ferrx(1, "failed to parse segment header: %s", header.name);*/
+    default:
+        //dprintf(STDOUT_FILENO, "skipping \"%s\" segment (debugging)\n", header.name);
         break;
     }
 
     calljson0(finish_sh);
     xseek_set(next_segment);
+
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -126,16 +156,14 @@ int main(int argc, char *argv[]) {
 
     if (dojson) {
         if ((jsonfd = open(jsonfn, O_WRONLY | O_TRUNC | O_CREAT, 0644)) < 0)
-            err(1, "could not open output JSON file %s", jsonfd);
+            err(1, "could not open output JSON file %s", jsonfn);
 
         czi_json_setfd(jsonfd);
         czi_json_start();
     }
     
-    //    while (next_segment() == 0);
-    next_segment();
-    next_segment();
-
+    while (next_segment() == 0);
+    
     if (dojson) {
         czi_json_finish();
     }
