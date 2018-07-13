@@ -119,6 +119,10 @@ int main(int argc, char *argv[]) {
     
     while (next_segment() == 0);
 
+    if (dojson) {
+        czi_json_finish();
+    }
+    
     exit(0);
 }
 

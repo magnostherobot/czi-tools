@@ -4,6 +4,7 @@
 
 #include "zeiss.h"
 #include "mmap.h"
+#include "json.h"
 
 static int extractfd = -1;
 
@@ -43,8 +44,8 @@ enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
 }
 
 void czi_process_zrf(struct czi_seg_header *header) {
-
-
+    calljson(start_sh, header);
+    calljson0(finish_sh);
 }
 
 
