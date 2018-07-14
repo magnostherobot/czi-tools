@@ -40,11 +40,10 @@ static yajl_gen gen;
     if (yajl_gen_integer(gen, i) != yajl_gen_status_ok) \
         ferrx(1, "could not write integer value \"%" PRIu64 "\"", i)
 
-
 /* callback passed to yajl which prints the serialised JSON structure to the JSON output file */
 static yajl_print_t print_callback(void *ignored, const char *str, size_t len) {
     ssize_t rv;
-
+    
     while ((rv = write(jsonfd, str, len)) != 0) {
         if (rv == -1) {
             if (errno == EINTR || errno == EAGAIN)
@@ -132,8 +131,9 @@ void czi_json_write_uuid(uuid_t data) {
 }
 
 void czi_json_write_deleted() {
-    yg_m_open();
-    yg_m_close();
+    /* yg_m_open(); */
+    yg_s("none");
+    /* yg_m_close(); */
 }
 
 void czi_json_write_directory(struct czi_directory *dir) {
@@ -228,7 +228,7 @@ void czi_json_write_subblock(struct czi_subblock *sblk, char *mname, char *dname
     yg_s("AttachmentSize"); yg_i(sblk->attachment_size);
     yg_s("DataSize");       yg_i(sblk->data_size);
     yg_s("DirectoryEntry"); czi_json_write_dir_entry(&sblk->dir_entry);
-
+    
     yg_s("Metadata");    if (czi_check_sblk_metadata(sblk)) yg_s(mname); else yg_s("empty");
     yg_s("Data");        if (sblk->data_size > 0)           yg_s(dname); else yg_s("empty");
     yg_s("Attachments"); if (sblk->attachment_size > 0)     yg_s(aname); else yg_s("empty");
@@ -236,4 +236,58 @@ void czi_json_write_subblock(struct czi_subblock *sblk, char *mname, char *dname
     yg_m_close();
 }
 
+void czi_json_write_metadata(struct czi_metadata *data) {
+    yg_m_open();
+
+    yg_s("XmlSize");        yg_i(data->xml_size);
+    yg_s("AttachmentSize"); yg_i(data->attachment_size);
+    yg_s("XmlName");        yg_s("FILE-META-1.xml");
+    
+    yg_m_close();
+}
+
+void czi_json_write_attach_entry(struct czi_attach_entry *atte) {
+    char schema[3];
+    char ftype[9];
+    char name[81];
+
+    memcpy(schema, atte->schema_type, 2);      schema[2] = '\0';
+    memcpy(ftype, atte->content_file_type, 8); ftype[8] = '\0';
+    memcpy(name, atte->name, 80);              name[80] = '\0';
+
+    yg_m_open();
+
+    yg_s("SchemaType");      yg_s(schema);
+    /* we don't output the reserved section */
+    yg_s("FilePosition");    yg_i(atte->file_position);
+    yg_s("FilePart");        yg_i(atte->file_part);
+    yg_s("ContentGuid");     czi_json_write_uuid(atte->content_guid);
+    yg_s("ContentFileType"); yg_s(ftype);
+    yg_s("Name");            yg_s(name);
+    
+    yg_m_close();
+}
+
+void czi_json_write_attachment(struct czi_attach *att, char *fname) {
+    yg_m_open();
+
+    yg_s("DataSize");        yg_i(att->data_size);
+    yg_s("AttachmentEntry"); czi_json_write_attach_entry(&att->att_entry);
+    yg_s("Data");            yg_s(fname);
+    
+    yg_m_close();
+}
+
+void czi_json_write_attach_dir(struct czi_attach_dir *attd) {
+    yg_m_open();
+
+    yg_s("EntryCount"); yg_i(attd->entry_count);
+    yg_s("Entry");      yg_a_open();
+
+    for (uint32_t i = 0; i < attd->entry_count; i++)
+        czi_json_write_attach_entry(&attd->att_entries[i]);
+    
+    yg_a_close();
+    yg_m_close();
+}
 

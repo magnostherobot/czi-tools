@@ -103,12 +103,11 @@ struct czi_attach {
     char reserved1[12];
     struct czi_attach_entry att_entry;
     char reserved2[112];
-    void* data;
 } PACKED;
 
 /* CZI ZISRAWATTDIR segment */
 struct czi_attach_dir {
-    int entry_count;
+    uint32_t entry_count;
     char reserved[252];
     struct czi_attach_entry *att_entries;
 } PACKED;
@@ -125,5 +124,8 @@ int czi_check_sblk_metadata(struct czi_subblock *);
 void czi_process_zrf();
 void czi_process_directory();
 void czi_process_subblock();
+void czi_process_metadata();
+void czi_process_attachment();
+void czi_process_attach_dir();
 
 #endif /* _ZEISS_H */

@@ -57,13 +57,15 @@ static void extract_data(char *fname, uint64_t size) {
 /* check if a subblock has interesting metadata */
 int czi_check_sblk_metadata(struct czi_subblock *sblk) {
     int rv;
-    char buf[12];
+    char buf[sblk->metadata_size];
 
-    if (xread(&buf, 12))
+    if (xread(&buf, sblk->metadata_size))
         ferrx1(1, "could not read tile metadata");
 
-    rv = strncmp(buf, "<METADATA />", 12);
-    xseek_backward(12);
+    /* if there's no other metadata in this block, we'll just have this single
+     * XML string */
+    rv = strncmp(buf, "<METADATA />", sblk->metadata_size);
+    xseek_backward(sblk->metadata_size);
 
     return (rv != 0);
 }
@@ -107,16 +109,17 @@ void czi_process_zrf() {
 void czi_process_directory() {
     struct czi_directory directory;
     void *ptr;
-    
-    if (xread((void*)&directory, sizeof(struct czi_directory)) == -1)
-        ferrx1(1, "could not read ZISRAWDIRECTORY segment");
 
-    xseek_backward(8);
+    /* the last member of a struct czi_directory is a pointer, which doesn't
+     * come from the data file, so we should avoid reading into that value */
+    
+    if (xread((void*)&directory, (sizeof(struct czi_directory) - sizeof(void *))) == -1)
+        ferrx1(1, "could not read ZISRAWDIRECTORY segment");
     
     /* reallocarray() is a BSD extension, but we use it here for the overflow checking */
     if ((ptr = reallocarray(NULL,
-                            sizeof(struct czi_subblock_direntry),
-                            directory.entry_count)) == NULL) {
+                            directory.entry_count,
+                            sizeof(struct czi_subblock_direntry))) == NULL) {
         ferr(1, "could not allocate memory for %" PRIu32 " directory entries",
              directory.entry_count);
     }
@@ -125,16 +128,15 @@ void czi_process_directory() {
     
     for (uint32_t i = 0; i < directory.entry_count; i++) {
         struct czi_subblock_direntry *entry = &directory.dir_entries[i];
-        
+
+        /* accomodate the pointer at the end of the direntry struct */
         if (xread((void*)entry,
-                  sizeof(struct czi_subblock_direntry)) == -1)
+                  (sizeof(struct czi_subblock_direntry) - sizeof(void *))) == -1)
             ferrx(1, "could not read subblock directory entry %" PRIu32, i);
 
-        xseek_backward(8);
-
         if ((ptr = reallocarray(NULL,
-                                sizeof(struct czi_subblock_dimentry),
-                                entry->dimension_count)) == NULL)
+                                entry->dimension_count,
+                                sizeof(struct czi_subblock_dimentry))) == NULL)
             ferrx(1, "could not allocate memory for %" PRIu32 " dimension entries",
                  entry->dimension_count);
 
@@ -168,17 +170,18 @@ void czi_process_subblock() {
 
     /*
      * processing a subblock takes some care. we read in the beginning of the
-     * subblock, which includes size information and a directory entry, and then
+     * subblock, which includes size information and a directory entry (though
+     * the direntry struct has an extra pointer at the end, see above), and then
      * adjust for variable length dir_entry. after correcting the file offset we
      * can then read the {meta,}data and attachments.
      */
 
-    if (xread(&sblk, /*sizeof(struct czi_subblock)*/ sizeof(struct czi_subblock_direntry) + 8) == -1)
+    if (xread(&sblk, (sizeof(struct czi_subblock) - sizeof(void *))) == -1)
         ferrx1(1, "could not read ZISRAWSUBBLOCK segment");
 
     if ((ptr = reallocarray(NULL,
-                            sizeof(struct czi_subblock_dimentry),
-                            sblk.dir_entry.dimension_count)) == NULL)
+                            sblk.dir_entry.dimension_count,
+                            sizeof(struct czi_subblock_dimentry))) == NULL)
         ferr(1, "could not allocate memory for %" PRIu32 " dimension entries",
              sblk.dir_entry.dimension_count);
 
@@ -247,6 +250,7 @@ void czi_process_subblock() {
         ferr(1, "could not allocate memory for creating output attachment filename "
              "in tile suffix %s", fnames.suffix);
 
+    
     /* write the JSON... */
     calljson(write_subblock, &sblk, fnames.metadata, fnames.data, fnames.attach);
 
@@ -269,6 +273,71 @@ void czi_process_subblock() {
     free(fnames.metadata);
     free(fnames.data);
     free(fnames.attach);
+    return;
+}
+
+void czi_process_metadata() {
+    struct czi_metadata data;
+
+    if (xread((void *)&data, sizeof(struct czi_metadata)) == -1)
+        ferrx1(1, "could not read ZISRAWMETADATA segment");
+
+    calljson(write_metadata, &data);
+
+    if (extractfd != -1)
+        extract_data("FILE-META-1.xml", data.xml_size);
+
+    return;
+}
+
+void czi_process_attachment() {
+    static unsigned int attmt_no = 1;
+    struct czi_attach att;
+    char *name;
+
+    if (xread((void *)&att, sizeof(struct czi_attach)) == -1)
+        ferrx1(1, "could not read ZISRAWATTACH segment");
+
+    /* generate filenames */
+    if (asprintf(&name, "attach-data-%u", attmt_no) == -1)
+        ferr1(1, "could not allocate memory for attachment filename");
+    
+    calljson(write_attachment, &att, name);
+
+    if (extractfd != -1)
+        extract_data(name, att.data_size);
+    
+    free(name);
+    attmt_no++;
+    return;
+}
+
+void czi_process_attach_dir() {
+    struct czi_attach_dir attd;
+    void *ptr;
+
+    /* strip trailing pointer */
+    if (xread((void *)&attd,
+              (sizeof(struct czi_attach_dir) - sizeof(void *))) == -1)
+        ferrx1(1, "could not read ZISRAWATTDIR segment");
+
+    if ((ptr = reallocarray(NULL,
+                            attd.entry_count,
+                            sizeof(struct czi_attach_entry))) == NULL)
+        ferr(1, "could not allocate memory for %" PRIu32
+             " attachment directory entries", attd.entry_count);
+
+    attd.att_entries = (struct czi_attach_entry *) ptr;
+    
+    if (xread((void *)attd.att_entries,
+              sizeof(struct czi_attach_entry *) * attd.entry_count) == -1)
+        ferrx(1, "could not read %" PRIu32 "attachment directory entries",
+              attd.entry_count);
+
+    calljson(write_attach_dir, &attd);
+
+    free(attd.att_entries);
+    
     return;
 }
 
