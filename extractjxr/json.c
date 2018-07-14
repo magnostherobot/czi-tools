@@ -43,7 +43,7 @@ static yajl_gen gen;
 /* callback passed to yajl which prints the serialised JSON structure to the JSON output file */
 static yajl_print_t print_callback(void *ignored, const char *str, size_t len) {
     ssize_t rv;
-    
+
     while ((rv = write(jsonfd, str, len)) != 0) {
         if (rv == -1) {
             if (errno == EINTR || errno == EAGAIN)
