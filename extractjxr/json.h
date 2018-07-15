@@ -18,7 +18,10 @@ void czi_json_finish();
     X(write_directory, (struct czi_directory *))                        \
     X(write_dir_entry, (struct czi_subblock_direntry *))                \
     X(write_dim_entry, (struct czi_subblock_dimentry *))                \
-    X(write_subblock, (struct czi_subblock *, char *, char *, char *))
+    X(write_subblock, (struct czi_subblock *, char *, char *, char *))  \
+    X(write_metadata, (struct czi_metadata *))                          \
+    X(write_attachment, (struct czi_attach *, char *))                  \
+    X(write_attach_dir, (struct czi_attach_dir *))
 
 
 #define X(name, sig) void czi_json_ ## name  sig;

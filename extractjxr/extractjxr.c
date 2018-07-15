@@ -83,13 +83,22 @@ int next_segment() {
         break;
     case ZISRAWSUBBLOCK:
         czi_process_subblock();
-    case DELETED:
-//        calljson0(write_deleted);
         break;
-//    case UNKNOWN:
-        /*ferrx(1, "failed to parse segment header: %s", header.name);*/
+    case ZISRAWMETADATA:
+        czi_process_metadata();
+        break;
+    case ZISRAWATTACH:
+        czi_process_attachment();
+        break;
+    case ZISRAWATTDIR:
+        czi_process_attach_dir();
+        break;
+    case DELETED:
+        calljson0(write_deleted);
+        break;
     default:
-        //dprintf(STDOUT_FILENO, "skipping \"%s\" segment (debugging)\n", header.name);
+    case UNKNOWN:
+        ferrx(1, "failed to parse segment header: %s", header.name);
         break;
     }
 
