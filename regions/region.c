@@ -18,6 +18,7 @@
 #include <errno.h>
 
 #include "debug.h"
+#include "llist.h"
 
 struct region {
     uint32_t up;
@@ -34,27 +35,13 @@ struct tile {
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
-typedef struct tl_node {
-    struct tile    *tile;
-    struct tl_node *next;
-} tile_list;
+bool tile_comparator(struct tile *a, struct tile *b) {
+    return a->region.up   <= b->region.up
+        && a->region.left <= b->region.left;
+}
 
-tile_list *add_tile(tile_list *list, struct tile *tile) {
-    struct tl_node *node = list;
-    struct tl_node *prev = NULL;
-    while (node
-            && node->tile->region.up   <= tile->region.up
-            && node->tile->region.left <= tile->region.left) {
-        prev = node;
-        node = node->next;
-    }
-    struct tl_node *new_node = (struct tl_node *) malloc(sizeof (*new_node));
-    if (!new_node) return NULL;
-    new_node->tile = tile;
-    new_node->next = node;
-    if (!list) return new_node;
-    if (prev) prev->next = new_node;
-    return list;
+bool tile_ll_comparator(void *a, void *b) {
+    return tile_comparator((void *)a, (void *)b);
 }
 
 /*
@@ -122,7 +109,7 @@ FILE *stitch_region(struct region *desired, DIR *tile_directory) {
     struct dirent *ent;
     // Here, we need to find the files contained within the desired region
     // in both dimensions.
-    tile_list *included_tiles = NULL;
+    llist *included_tiles = NULL;
     while (ent = readdir(tile_directory)) {
         fprintf(stderr, "checking file %s\n", ent->d_name);
         struct region tile_region;
@@ -131,29 +118,36 @@ FILE *stitch_region(struct region *desired, DIR *tile_directory) {
             struct tile *tile = (struct tile *) malloc(sizeof (*tile));
             tile->region  = tile_region;
             strncpy(tile->filename, ent->d_name, sizeof (ent->d_name));
-            included_tiles = add_tile(included_tiles, tile);
+            included_tiles = ll_add_item(included_tiles, tile, &tile_ll_comparator);
         }
     }
 
     // Now, we stitch all the selected parts together, in order:
-    for (struct tl_node *node = included_tiles; node; node = node->next) {
-        fprintf(stderr, "%s\n", node->tile->filename);
+    for (struct ll_node *node = included_tiles; node; node = node->next) {
+        fprintf(stderr, "%s\n", ((struct tile *) node->content)->filename);
     }
 }
 
-int main() {
-    struct region des = {
-        .up    = 0,
-        .down  = 7,
-        .left  = 0,
-        .right = 5
-    };
-    char *tile_dirname = "./test_images";
-
+int main(int argc, char **argv) {
+    if (argc != 6) {
+        printf("Usage: %s <tile_dir> <left> <top> <width> <height>\n", argv[0]);
+        exit(1);
+    }
+    char *tile_dirname = argv[1];
     DIR *dir = opendir(tile_dirname);
     if (!dir) {
         perror(tile_dirname);
         exit(errno);
     }
+    long left   = strtol(argv[2], NULL, 10);
+    long up     = strtol(argv[3], NULL, 10);
+    long width  = strtol(argv[4], NULL, 10);
+    long height = strtol(argv[5], NULL, 10);
+    struct region des = {
+        .up    = up,
+        .down  = up + height,
+        .left  = left,
+        .right = left + width
+    };
     stitch_region(&des, dir);
 }
