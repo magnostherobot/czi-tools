@@ -16,6 +16,8 @@
 #include <stdbool.h>
 // For errno:
 #include <errno.h>
+// For vips image manipulation:
+#include <vips/vips.h>
 
 #include "debug.h"
 #include "llist.h"
@@ -105,40 +107,78 @@ struct region *get_region(struct dirent *ent, struct region *buf) {
 #   undef get_region_side
 }
 
-FILE *stitch_region(struct region *desired, DIR *tile_directory) {
-    struct dirent *ent;
-    // Here, we need to find the files contained within the desired region
-    // in both dimensions.
+llist *find_relevant_tiles(struct region *desired, char *tile_dirname) {
     llist *included_tiles = NULL;
-    while (ent = readdir(tile_directory)) {
+    DIR *dir = opendir(tile_dirname);
+    if (!dir) {
+        perror(tile_dirname);
+        exit(errno);
+    }
+    struct dirent *ent;
+    while (ent = readdir(dir)) {
         fprintf(stderr, "checking file %s\n", ent->d_name);
         struct region tile_region;
         if (!get_region(ent, &tile_region)) continue;
         if (overlaps(&tile_region, desired)) {
             struct tile *tile = (struct tile *) malloc(sizeof (*tile));
             tile->region  = tile_region;
-            strncpy(tile->filename, ent->d_name, sizeof (ent->d_name));
+            strncpy(tile->filename, ent->d_name, strlen(ent->d_name)+1);
             included_tiles = ll_add_item(included_tiles, tile, &tile_ll_comparator);
         }
     }
+    return included_tiles;
+}
 
-    // Now, we stitch all the selected parts together, in order:
-    for (struct ll_node *node = included_tiles; node; node = node->next) {
-        fprintf(stderr, "%s\n", ((struct tile *) node->content)->filename);
+#define safe_vips(...) if (!(__VA_ARGS__)) vips_error_exit(NULL)
+
+VipsImage **get_tile_data(llist *tiles, char *tile_dirname) {
+    VipsImage **ret = (typeof(ret)) malloc(sizeof (*ret) * ll_length(tiles));
+    char *fn_buf = (typeof(fn_buf)) malloc(sizeof (*fn_buf) * 525);
+    strncpy(fn_buf, tile_dirname, 256);
+    char *fn_mid = fn_buf + strlen(fn_buf);
+    *(fn_mid++) = '/';
+    VipsImage **v = ret;
+    for (struct ll_node *node = tiles; node; node = node->next) {
+        struct tile *tile = (typeof(tile)) node->content;
+        strcpy(fn_mid, tile->filename);
+        safe_vips(*(v++) = vips_image_new_from_file(fn_buf, NULL));
     }
+    return ret;
+}
+
+int tiles_across(llist *tiles) {
+    if (!tiles) return 0;
+    uint32_t first_y = ((struct tile *) tiles->content)->region.up;
+    int i = 1;
+    for (struct ll_node *node = tiles->next; node; node = node->next) {
+        ++i;
+    }
+    return i;
+}
+
+FILE *stitch_region(struct region *desired, char *tile_dirname) {
+    llist *included_tiles = find_relevant_tiles(desired, tile_dirname);
+    VipsImage **vips_in = get_tile_data(included_tiles, tile_dirname);
+    VipsImage *vips_mid;
+    safe_vips(vips_arrayjoin(vips_in, &vips_mid,
+            ll_length(included_tiles), tiles_across(included_tiles), NULL));
+    VipsImage *vips_out;
+    // Following line mutates desired:
+    move_relative(&(((struct tile *) (included_tiles->content))->region), desired);
+    safe_vips(vips_crop(vips_mid, &vips_out, desired->left, desired->up,
+                desired->right - desired->left, desired->down - desired->up,
+                NULL));
+    safe_vips(vips_image_write_to_file(vips_out, "./test.png", NULL));
 }
 
 int main(int argc, char **argv) {
+    if (VIPS_INIT(argv[0])) vips_error_exit(NULL);
+
     if (argc != 6) {
         printf("Usage: %s <tile_dir> <left> <top> <width> <height>\n", argv[0]);
         exit(1);
     }
     char *tile_dirname = argv[1];
-    DIR *dir = opendir(tile_dirname);
-    if (!dir) {
-        perror(tile_dirname);
-        exit(errno);
-    }
     long left   = strtol(argv[2], NULL, 10);
     long up     = strtol(argv[3], NULL, 10);
     long width  = strtol(argv[4], NULL, 10);
@@ -149,5 +189,5 @@ int main(int argc, char **argv) {
         .left  = left,
         .right = left + width
     };
-    stitch_region(&des, dir);
+    stitch_region(&des, tile_dirname);
 }
