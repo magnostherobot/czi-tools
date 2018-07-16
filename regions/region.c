@@ -169,15 +169,25 @@ FILE *stitch_region(struct region *desired, char *tile_dirname) {
     llist *included_tiles = find_relevant_tiles(desired, tile_dirname);
     VipsImage **vips_in = get_tile_data(included_tiles, tile_dirname);
     VipsImage *vips_mid;
-    safe_vips(vips_arrayjoin(vips_in, &vips_mid,
-            ll_length(included_tiles), tiles_across(included_tiles), NULL));
+    int ntiles = ll_length(included_tiles);
+
+    if (vips_arrayjoin(vips_in, &vips_mid,
+            ntiles, "across", tiles_across(included_tiles), NULL))
+        vips_error_exit(NULL);
+
     VipsImage *vips_out;
+
     // Following line mutates desired:
     move_relative(&(((struct tile *) (included_tiles->content))->region), desired);
-    safe_vips(vips_crop(vips_mid, &vips_out, desired->left, desired->up,
+
+    if (vips_crop(vips_mid, &vips_out, desired->left, desired->up,
                 desired->right - desired->left, desired->down - desired->up,
-                NULL));
-    safe_vips(vips_image_write_to_file(vips_out, "./test.png", NULL));
+                NULL))
+        vips_error_exit(NULL);
+
+    if (vips_image_write_to_file(vips_out, "/cs/scratch/trh/out.png", NULL))
+        vips_error_exit(NULL);
+    debug("%s", "success?");
 }
 
 int main(int argc, char **argv) {
