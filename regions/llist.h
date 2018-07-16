@@ -5,7 +5,6 @@
 typedef struct ll_node {
     void           *content;
     struct ll_node *next;
-    int             _length;
 } llist;
 
 typedef bool ll_comparator(void *, void *);

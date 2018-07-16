@@ -38,8 +38,9 @@ struct tile {
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 bool tile_comparator(struct tile *a, struct tile *b) {
-    return a->region.up   <= b->region.up
-        && a->region.left <= b->region.left;
+    return !(a->region.up > b->region.up
+            || (a->region.up == b->region.up
+                && a->region.left > b->region.left));
 }
 
 bool tile_ll_comparator(void *a, void *b) {
@@ -107,6 +108,14 @@ struct region *get_region(struct dirent *ent, struct region *buf) {
 #   undef get_region_side
 }
 
+void print_tiles(llist *list) {
+    debug("%s", "--");
+    for (struct ll_node *node = list; node; node = node->next) {
+        debug("%s", ((struct tile *) (node->content))->filename);
+    }
+    debug("%s", "--");
+}
+
 llist *find_relevant_tiles(struct region *desired, char *tile_dirname) {
     llist *included_tiles = NULL;
     DIR *dir = opendir(tile_dirname);
@@ -121,7 +130,7 @@ llist *find_relevant_tiles(struct region *desired, char *tile_dirname) {
         if (!get_region(ent, &tile_region)) continue;
         if (overlaps(&tile_region, desired)) {
             struct tile *tile = (struct tile *) malloc(sizeof (*tile));
-            tile->region  = tile_region;
+            tile->region = tile_region;
             strncpy(tile->filename, ent->d_name, strlen(ent->d_name)+1);
             included_tiles = ll_add_item(included_tiles, tile, &tile_ll_comparator);
         }
@@ -132,8 +141,8 @@ llist *find_relevant_tiles(struct region *desired, char *tile_dirname) {
 #define safe_vips(...) if (!(__VA_ARGS__)) vips_error_exit(NULL)
 
 VipsImage **get_tile_data(llist *tiles, char *tile_dirname) {
-    VipsImage **ret = (typeof(ret)) malloc(sizeof (*ret) * ll_length(tiles));
-    char *fn_buf = (typeof(fn_buf)) malloc(sizeof (*fn_buf) * 525);
+    VipsImage **ret = (typeof(ret)) malloc((sizeof (*ret)) * ll_length(tiles));
+    char *fn_buf = (typeof(fn_buf)) malloc((sizeof (*fn_buf)) * 525);
     strncpy(fn_buf, tile_dirname, 256);
     char *fn_mid = fn_buf + strlen(fn_buf);
     *(fn_mid++) = '/';
@@ -150,7 +159,7 @@ int tiles_across(llist *tiles) {
     if (!tiles) return 0;
     uint32_t first_y = ((struct tile *) tiles->content)->region.up;
     int i = 1;
-    for (struct ll_node *node = tiles->next; node; node = node->next) {
+    for (struct ll_node *node = tiles->next; node && (((struct tile *) node->content)->region.up == first_y); node = node->next) {
         ++i;
     }
     return i;
