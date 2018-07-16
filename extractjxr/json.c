@@ -3,16 +3,21 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
+#ifdef YAJL_BROKEN
 #include <yajl/yajl_gen.h>
+#endif
 
 #include "zeiss.h"
 #include "json.h"
 #include "macros.h"
 
 static int jsonfd = -1;
+
+#ifdef YAJL_BROKEN
 static yajl_gen gen;
 
 #define yg_m_open() \
@@ -291,3 +296,214 @@ void czi_json_write_attach_dir(struct czi_attach_dir *attd) {
     yg_m_close();
 }
 
+#else
+
+/* handrolled JSON, because yajl gets unhappy */
+
+#define j(...)          dprintf(jsonfd, __VA_ARGS__)
+#define k(k)            j("\"%s\":", k)
+#define vi(v)           j("%d", v)
+#define vs(v)           j("\"%s\"", v)
+#define kvu64(k, v)     j("\"%s\":%" PRIu64, k, v)
+#define kvu32(k, v)     j("\"%s\":%" PRIu32, k, v)
+#define kvi32(k, v)     j("\"%s\":%" PRIi32, k, v)
+#define kvd(k, v)       j("\"%s\":%e", k, v)
+#define kvs(k, v)       j("\"%s\":\"%s\"", k, v)
+#define comma()         j(",")
+
+void czi_json_setfd(int val) {
+    jsonfd = val;
+}
+
+int czi_json_getfd() {
+    return jsonfd;
+}
+
+void czi_json_start() {
+    j("[");
+}
+
+void czi_json_finish() {
+    j("]");
+}
+
+void czi_json_start_sh(struct czi_seg_header *header) {
+    static int first = 0;
+
+    if (first == 0) {
+        j("{");
+        first = 1;
+    } else {
+        j(",{");
+    }
+
+    kvs("Id", header->name); comma();
+    kvu64("AllocatedSize", header->allocated_size); comma();
+    kvu64("UsedSize", header->used_size); comma();
+    k("Data");
+}
+
+void czi_json_finish_sh() {
+    j("}");
+}
+
+void czi_json_write_zrf(struct czi_zrf *zrf) {
+    j("{");
+
+    kvu32("Major", zrf->major); comma();
+    kvu32("Minor", zrf->minor); comma();
+    k("PrimaryFileGuid"); czi_json_write_uuid(zrf->primary_file_guid); comma();
+    k("FileGuid"); czi_json_write_uuid(zrf->file_guid); comma();
+    kvu32("FilePart", zrf->file_part); comma();
+    kvu64("DirectoryPosition", zrf->directory_position); comma();
+    kvu64("MetadataPosition", zrf->metadata_position); comma();
+    kvu32("UpdatePending", zrf->update_pending); comma();
+    kvu64("AttachmentDirectoryPosition", zrf->attachment_directory_position);
+    
+    j("}");
+}
+
+void czi_json_write_uuid(uuid_t data) {
+    j("[");
+
+    vi(data[0]);
+    for (int i = 1; i < 16; i++) {
+        comma(); vi(data[i]);
+    }
+    
+    j("]");
+}
+
+void czi_json_write_deleted() {
+    j("{}");
+}
+
+void czi_json_write_directory(struct czi_directory *dir) {
+    j("{");
+
+    kvu32("EntryCount", dir->entry_count); comma();
+    k("Entry"); j("[");
+
+    czi_json_write_dir_entry(&dir->dir_entries[0]);
+    for (uint32_t i = 1; i < dir->entry_count; i++) {
+        comma(); czi_json_write_dir_entry(&dir->dir_entries[i]);
+    }
+
+    j("]");
+    
+    j("}");
+}
+
+void czi_json_write_dir_entry(struct czi_subblock_direntry *ent) {
+    char schema_type[3] = {ent->schema[0], ent->schema[1], '\0'};
+
+    j("{");
+    
+    kvs("SchemaType", schema_type); comma();
+    kvu32("PixelType", ent->pixel_type); comma();
+    kvu64("FilePosition", ent->file_position); comma();
+    kvu32("FilePart", ent->file_part); comma();
+    kvu32("Compression", ent->compression); comma();
+    kvu32("PyramidType", ent->pyramid_type); comma();
+    kvu32("DimensionCount", ent->dimension_count); comma();
+    k("DimensionEntries"); j("[");
+
+    czi_json_write_dim_entry(&ent->dim_entries[0]);
+    for (uint32_t i = 1; i < ent->dimension_count; i++) {
+        comma(); czi_json_write_dim_entry(&ent->dim_entries[i]);
+    }
+
+    j("]");
+    j("}");
+}
+
+void czi_json_write_dim_entry(struct czi_subblock_dimentry *dim) {
+    char dimension[5];
+
+    memcpy(dimension, dim->dimension, 4);
+    dimension[4] = '\0';
+
+    j("{");
+
+    kvs("Dimension", dimension); comma();
+    kvi32("Start", dim->start); comma();
+    kvu32("Size", dim->size); comma();
+    kvd("StartCoordinate", (double) dim->start_coordinate); comma();
+    kvu32("StoredSize", dim->stored_size);
+
+    j("}");
+}
+
+void czi_json_write_subblock(struct czi_subblock *sblk, char *mname, char *dname, char *aname) {
+    j("{");
+
+    kvu32("MetadataSize", sblk->metadata_size); comma();
+    kvu32("AttachmentSize", sblk->attachment_size); comma();
+    kvu64("DataSize", sblk->data_size); comma();
+    k("DirectoryEntry"); czi_json_write_dir_entry(&sblk->dir_entry); comma();
+
+    k("Metadata");     (sblk->metadata_size > 0 ? vs(mname) : vs("empty")); comma();
+    k("Data");         (sblk->data_size > 0 ? vs(dname) : vs("empty")); comma();
+    k("Attachments");  (sblk->attachment_size > 0 ? vs(aname) : vs("empty"));
+    
+    j("}");
+}
+
+void czi_json_write_metadata(struct czi_metadata *data) {
+    j("{");
+
+    kvu32("XmlSize", data->xml_size); comma();
+    kvu32("AttachmentSize", data->attachment_size);  comma();
+    kvs("XmlName", "FILE-META-1.xml");
+    
+    j("}");
+}
+
+void czi_json_write_attach_entry(struct czi_attach_entry *atte) {
+    char schema[3];
+    char ftype[9];
+    char name[81];
+
+    memcpy(schema, atte->schema_type, 2);      schema[2] = '\0';
+    memcpy(ftype, atte->content_file_type, 8); ftype[8] = '\0';
+    memcpy(name, atte->name, 80);              name[80] = '\0';
+
+    j("{");
+
+    kvs("SchemaType", schema); comma();
+    kvu64("FilePosition", atte->file_position); comma();
+    kvu32("FilePart", atte->file_part); comma();
+    k("ContentGuid"); czi_json_write_uuid(atte->content_guid); comma();
+    kvs("ContentFileType", ftype); comma();
+    kvs("Name", name); 
+    
+    j("}");
+}
+
+void czi_json_write_attachment(struct czi_attach *att, char *fname) {
+    j("{");
+
+    kvu32("DataSize", att->data_size);  comma();
+    k("AttachmentEntry"); czi_json_write_attach_entry(&att->att_entry); comma();
+    kvs("Data", fname);
+    
+    j("}");
+}
+
+void czi_json_write_attach_dir(struct czi_attach_dir *attd) {
+    j("{");
+
+    kvu32("EntryCount", attd->entry_count); comma();
+    k("Entry"); j("[");
+
+    czi_json_write_attach_entry(&attd->att_entries[0]);
+    for (uint32_t i = 1; i < attd->entry_count; i++) {
+        comma(); czi_json_write_attach_entry(&attd->att_entries[i]);
+    }
+
+    j("]");
+    
+    j("}");
+}
+
+#endif /* YAJL_BROKEN */

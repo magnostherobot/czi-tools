@@ -54,22 +54,6 @@ static void extract_data(char *fname, uint64_t size) {
              fd, fname);
 }
 
-/* check if a subblock has interesting metadata */
-int czi_check_sblk_metadata(struct czi_subblock *sblk) {
-    int rv;
-    char buf[sblk->metadata_size];
-
-    if (xread(&buf, sblk->metadata_size))
-        ferrx1(1, "could not read tile metadata");
-
-    /* if there's no other metadata in this block, we'll just have this single
-     * XML string */
-    rv = strncmp(buf, "<METADATA />", sblk->metadata_size);
-    xseek_backward(sblk->metadata_size);
-
-    return (rv != 0);
-}
-
 enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
     if (strcmp(header->name, "ZISRAWSUBBLOCK") == 0) {
         return ZISRAWSUBBLOCK;
@@ -256,10 +240,8 @@ void czi_process_subblock() {
 
     /* then jump into the scary heavy lifting */
     if (extractfd != -1) {
-        if (czi_check_sblk_metadata(&sblk))
+        if (sblk.metadata_size != 0)
             extract_data(fnames.metadata, sblk.metadata_size);
-        else
-            xseek_forward(sblk.metadata_size);
 
         if (sblk.data_size != 0)
             extract_data(fnames.data, sblk.data_size);
@@ -330,7 +312,7 @@ void czi_process_attach_dir() {
     attd.att_entries = (struct czi_attach_entry *) ptr;
     
     if (xread((void *)attd.att_entries,
-              sizeof(struct czi_attach_entry *) * attd.entry_count) == -1)
+              sizeof(struct czi_attach_entry) * attd.entry_count) == -1)
         ferrx(1, "could not read %" PRIu32 "attachment directory entries",
               attd.entry_count);
 
