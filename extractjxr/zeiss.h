@@ -128,4 +128,8 @@ void czi_process_metadata();
 void czi_process_attachment();
 void czi_process_attach_dir();
 
+void czi_scan_directory();
+void czi_scan_dimentry(struct czi_subblock_dimentry *);
+void czi_get_reslist(uint32_t **, size_t *);
+
 #endif /* _ZEISS_H */

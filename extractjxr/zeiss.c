@@ -16,9 +16,48 @@
 #include "json.h"
 #include "macros.h"
 
-/*#define CALLUM_COMPAT*/
-
 static int extractfd = -1;
+static uint32_t *reslist = NULL;
+static size_t reslistsize = 0;
+static size_t reslistlen = 0;
+
+#define RESLIST_START_SIZE 10
+
+/* resolution list handling */
+static void reslist_init() {
+    if (reslist)
+        return;
+
+    if ((reslist = reallocarray(NULL, RESLIST_START_SIZE, sizeof(int))) == NULL)
+        ferr1(1, "could not initialise resolution list");
+
+    reslistsize = RESLIST_START_SIZE;
+}
+
+static void reslist_expand() {
+    if (!reslist)
+        return;
+
+    if ((reslist = reallocarray(reslist, 2 * reslistsize, sizeof(int))) == NULL)
+        ferr1(1, "could not expand resolution list");
+
+    reslistsize *= 2;
+}
+
+static void reslist_add(uint32_t toadd) {
+    if (!reslist)
+        reslist_init();
+
+    for (int i = 0; i < reslistlen; i++)
+        if (reslist[i] == toadd)
+            return;
+
+    if (reslistsize == reslistlen)
+        reslist_expand();
+
+    reslist[reslistlen++] = toadd;
+}
+    
 
 void czi_extract_setfd(int val) {
     extractfd = val;
@@ -330,5 +369,55 @@ void czi_process_attach_dir() {
     return;
 }
 
+/* scan the directory's dimension entries for resolution ratios */
+void czi_scan_directory() {
+    struct czi_directory directory;
+    struct czi_subblock_direntry direntry;
+    struct czi_subblock_dimentry dimentry;
+    void *ptr;
 
+    /* ZISRAWDIRECTORY reading logic as above */
+    
+    if (xread((void*)&directory, (sizeof(struct czi_directory) - sizeof(void *))) == -1)
+        ferrx1(1, "could not read ZISRAWDIRECTORY segment");
+    
+    for (uint32_t i = 0; i < directory.entry_count; i++) {
+        /* accomodate the pointer at the end of the direntry struct */
+        if (xread((void*)&direntry,
+                  (sizeof(struct czi_subblock_direntry) - sizeof(void *))) == -1)
+            ferrx(1, "could not read subblock directory entry %" PRIu32, i);
 
+        for (uint32_t j = 0; j < direntry.dimension_count; j++) {
+            if (xread((void*)&dimentry, sizeof(struct czi_subblock_dimentry)) == -1)
+                ferrx(1, "could not read dimension entry %" PRIu32 " of directory entry %" PRIu32,
+                      j, i);
+
+            czi_scan_dimentry(&dimentry);
+        }
+    }
+}
+
+void czi_scan_dimentry(struct czi_subblock_dimentry *dim) {
+    /* Optimisation: only check X and Y dimensions */
+    char x[4] = "X\0\0\0";
+    char y[4] = "Y\0\0\0";
+    uint32_t ratio;
+
+    if ((memcmp(dim->dimension, x, 4) != 0) && (memcmp(dim->dimension, y, 4) != 0))
+        return;
+
+    if (dim->stored_size == 0)
+        reslist_add(1);
+    else
+        reslist_add(dim->size / dim->stored_size);
+
+    return;
+}
+
+void czi_get_reslist(uint32_t **listout, size_t *listlen) {
+    if (!reslist)
+        ferrx1(1, "attempted to access uninitialised resolution list");
+
+    *listout = reslist;
+    *listlen = reslistlen;
+}
