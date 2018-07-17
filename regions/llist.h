@@ -9,7 +9,11 @@ typedef struct ll_node {
 
 typedef bool ll_comparator(void *, void *);
 
+typedef bool ll_foreach_fn(void *, void*);
+
 llist *ll_add_item(llist *list, void *content, ll_comparator *comp);
+
+bool ll_foreach(llist *list,ll_foreach_fn *fn, void *data);
 
 int ll_length(llist *list);
 
