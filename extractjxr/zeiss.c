@@ -190,10 +190,14 @@ void czi_process_subblock() {
         
         if (i == 0) {
             if (asprintf(&tmp,
-                         "%s-%" PRId32 "+%" PRIu32,
+                         "%sp%" PRId32 "s%" PRIu32 "r%" PRIu32,
                          dimname,
                          sblk.dir_entry.dim_entries[i].start,
-                         sblk.dir_entry.dim_entries[i].size) == -1)
+                         sblk.dir_entry.dim_entries[i].size,
+                         (sblk.dir_entry.dim_entries[i].stored_size == 0 ? 1 :
+                          (sblk.dir_entry.dim_entries[i].size /
+                           sblk.dir_entry.dim_entries[i].stored_size)))
+                         == -1)
                 ferr1(1, "could not allocate memory for creating output filenames "
                       "from subblock dimension vector");
 
@@ -201,11 +205,14 @@ void czi_process_subblock() {
             tmp = NULL;
         } else {
             if (asprintf(&tmp,
-                         "%s,%s-%" PRId32 "+%" PRIu32,
+                         "%s,%sp%" PRId32 "s%" PRIu32 "r%" PRIu32,
                          fnames.suffix,
                          dimname,
                          sblk.dir_entry.dim_entries[i].start,
-                         sblk.dir_entry.dim_entries[i].size) == -1)
+                         sblk.dir_entry.dim_entries[i].size,
+                         (sblk.dir_entry.dim_entries[i].stored_size == 0 ? 1 :
+                          (sblk.dir_entry.dim_entries[i].size /
+                           sblk.dir_entry.dim_entries[i].stored_size))) == -1)
                 ferr1(1, "could not allocate memory for creating output filenames "
                       "from subblock dimension vector");
 
