@@ -17,4 +17,6 @@
 
 extern int tests_run;
 
+#define test static char *
+
 #endif /* _MINUNIT_H */

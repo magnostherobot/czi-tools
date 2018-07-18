@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "minunit.h"
 #include "region.h"
@@ -14,12 +15,6 @@
 int tests_run = 0;
 
 bool region_cmp(struct region *real, struct region *exp) {
-    fprintf(stdin,
-            "real:\tu%d\td%d\tl%d\tr%d\tz%d\n"
-            "exp: \tu%d\td%d\tl%d\tr%d\tz%d\n",
-            real->up, real->down, real->left, real->right, real->scale,
-            exp->up,  exp->down,  exp->left,  exp->right,  exp->scale
-           );
     return real->up    == exp->up
         && real->down  == exp->down
         && real->left  == exp->left
@@ -27,7 +22,7 @@ bool region_cmp(struct region *real, struct region *exp) {
         && real->scale == exp->scale;
 }
 
-static char *test_region_cmp() {
+test region_cmp_equality() {
     struct region a, b;
 
     assign_region(a, 1, 2, 3, 4, 5);
@@ -37,7 +32,7 @@ static char *test_region_cmp() {
     return 0;
 }
 
-static char *test_intersection_a_in_b() {
+test intersection_a_in_b() {
     struct region a, b, real, exp, *ret_ptr;
 
     assign_region(a, 3,  7, 3,  7, 1);
@@ -50,10 +45,11 @@ static char *test_intersection_a_in_b() {
     exp = a;
     mu_assert("a-in-b intersection inaccurate", region_cmp(&real, &exp));
 
+    free(ret_ptr);
     return 0;
 }
 
-static char *test_intersection_b_in_a() {
+test intersection_b_in_a() {
     struct region a, b, real, exp, *ret_ptr;
 
     assign_region(a,  0, 100,  0, 100, 1);
@@ -66,10 +62,11 @@ static char *test_intersection_b_in_a() {
     exp = b;
     mu_assert("b-in-a intersection inaccurate", region_cmp(&real, &exp));
 
+    free(ret_ptr);
     return 0;
 }
 
-static char *test_intersection_partial_overlap() {
+test intersection_partial_overlap() {
     struct region a, b, real, exp, *ret_ptr;
 
     assign_region(a,  0, 20,  0, 20, 1);
@@ -83,14 +80,30 @@ static char *test_intersection_partial_overlap() {
     mu_assert("partial-overlap intersection inaccurate",
             region_cmp(&real, &exp));
 
+    free(ret_ptr);
     return 0;
 }
 
-static char *run_tests() {
-    mu_run_test(test_region_cmp);
-    mu_run_test(test_intersection_a_in_b);
-    mu_run_test(test_intersection_b_in_a);
-    mu_run_test(test_intersection_partial_overlap);
+test intersection_no_overlap() {
+    struct region a, b, *ret_ptr;
+
+    assign_region(a, 0, 10,  0, 10, 1);
+    assign_region(b, 0, 10, 10, 20, 1);
+
+    ret_ptr = intersection(&a, &b);
+    mu_assert("no overlap still receiving intersection", ret_ptr == NULL);
+
+    return 0;
+}
+
+test run_tests() {
+    mu_run_test(region_cmp_equality);
+
+    mu_run_test(intersection_a_in_b);
+    mu_run_test(intersection_b_in_a);
+    mu_run_test(intersection_partial_overlap);
+    mu_run_test(intersection_no_overlap);
+
     return 0;
 }
 
