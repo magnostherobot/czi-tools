@@ -1,4 +1,3 @@
-
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -16,7 +15,10 @@
 #include "json.h"
 #include "macros.h"
 
+extern void *reallocarray(void *, size_t, size_t);
+
 static int extractfd = -1;
+static int filterlevel = 0;
 static uint32_t *reslist = NULL;
 static size_t reslistsize = 0;
 static size_t reslistlen = 0;
@@ -57,14 +59,47 @@ static void reslist_add(uint32_t toadd) {
 
     reslist[reslistlen++] = toadd;
 }
-    
 
-void czi_extract_setfd(int val) {
-    extractfd = val;
+static int reslist_contains(int val) {
+    if (!reslist)
+        return 0;
+
+    for (int i = 0; i < reslistlen; i++)
+        if (reslist[i] == val)
+            return 1;
+
+    return 0;
 }
 
-int czi_extract_getfd() {
-    return extractfd;
+static int check_filterlevel(struct czi_subblock_direntry *dir) {
+    /* we only filter on the X and Y dimensions */
+    char x[4] = "X\0\0\0";
+    char y[4] = "Y\0\0\0";
+    uint32_t x_ratio = 0, y_ratio = 0;
+
+    for (uint32_t i = 0; i < dir->dimension_count; i++) {
+        struct czi_subblock_dimentry *dim = &dir->dim_entries[i];
+        if (memcmp(&dir->dim_entries[i], x, 4) == 0)
+            x_ratio =  dim->stored_size == 0 ? 1 : (dim->size / dim->stored_size);
+        else if (memcmp(&dir->dim_entries[i], y, 4) == 0)
+            y_ratio =  dim->stored_size == 0 ? 1 : (dim->size / dim->stored_size);
+    }
+
+    if (!x_ratio) {
+        warnx("check_filterlevel: subblock contains no X dimension, skipping subblock");
+        return 0;
+    } else if (!y_ratio) {
+        warnx("check_filterlevel: subblock contains no Y dimension, skipping subblock");
+        return 0;
+    } else if (x_ratio != y_ratio) {
+        warnx("check_filterlevel: subblock subsampling of X and Y dimensions is unequal, skipping subblock");
+        return 0;
+    }
+
+    if (x_ratio == filterlevel && y_ratio == filterlevel)
+        return 1;
+
+    return 0;
 }
 
 /* mmap()ed file output handler
@@ -88,9 +123,22 @@ static void extract_data(char *fname, uint64_t size) {
         ferrx(1, "could not write data to output file \"%s\"", fname);
     
     if (close(fd) == -1)
-        warn("\nextract_data: could not close file descriptor %u to output "
+        warn("extract_data: could not close file descriptor %u to output "
              "file \"%s\" (continuing anyway...)",
              fd, fname);
+}
+
+
+void czi_extract_setfd(int val) {
+    extractfd = val;
+}
+
+int czi_extract_getfd() {
+    return extractfd;
+}
+
+void czi_extract_setfilter(int val) {
+    filterlevel = val;
 }
 
 enum czi_seg_t czi_getsegid(struct czi_seg_header *header) {
@@ -168,11 +216,20 @@ void czi_process_directory() {
         if (xread((void*) entry->dim_entries,
                   entry->dimension_count * sizeof(struct czi_subblock_dimentry)) == -1)
             ferrx(1, "could not read %" PRIu32 " dimension entries",
-                 entry->dimension_count);
+                  entry->dimension_count);
+
+        /* perform filter level checking if filtering was requested */
+        if (filterlevel) {
+            for (uint32_t j = 0; j < entry->dimension_count; j++)
+                czi_scan_dimentry(&entry->dim_entries[j]);
+        }
     }
 
+    if (filterlevel && !reslist_contains(filterlevel))
+        ferrx(1, "no tiles exist in input file with subsampling ratio %d", filterlevel);
+    
     calljson(write_directory, &directory);
-
+    
     for (uint32_t i = 0; i < directory.entry_count; i++) {
         free(directory.dir_entries[i].dim_entries);
     }
@@ -285,7 +342,7 @@ void czi_process_subblock() {
     calljson(write_subblock, &sblk, fnames.metadata, fnames.data, fnames.attach);
 
     /* then jump into the scary heavy lifting */
-    if (extractfd != -1) {
+    if (extractfd != -1 && check_filterlevel(&sblk.dir_entry)) {
         if (sblk.metadata_size != 0)
             extract_data(fnames.metadata, sblk.metadata_size);
 
@@ -406,11 +463,8 @@ void czi_scan_dimentry(struct czi_subblock_dimentry *dim) {
     if ((memcmp(dim->dimension, x, 4) != 0) && (memcmp(dim->dimension, y, 4) != 0))
         return;
 
-    if (dim->stored_size == 0)
-        reslist_add(1);
-    else
-        reslist_add(dim->size / dim->stored_size);
-
+    dim->stored_size == 0 ? reslist_add(1) : reslist_add(dim->size / dim->stored_size);
+    
     return;
 }
 

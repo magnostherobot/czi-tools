@@ -2,7 +2,8 @@ CC ?= gcc
 CFLAGS ?= -Og -g3
 LDFLAGS ?= 
 BINNAME ?= extractjxr
-OBJECTS = extractjxr.o mmap.o zeiss.o json.o
+SOURCES = extractjxr.c mmap.c zeiss.c json.c compat/reallocarray.c compat/strtonum.c
+OBJECTS = ${SOURCES:.c=.o}
 LIBS ?= 
 
 all: $(BINNAME)

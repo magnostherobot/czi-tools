@@ -116,6 +116,7 @@ struct czi_attach_dir {
 
 void czi_extract_setfd(int);
 int czi_extract_getfd();
+void czi_extract_setfilter(int);
 
 enum czi_seg_t czi_getsegid(struct czi_seg_header *);
 

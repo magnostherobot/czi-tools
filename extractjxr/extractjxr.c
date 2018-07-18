@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <err.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -26,6 +27,9 @@
 #include "json.h"
 #include "macros.h"
 
+
+extern long long strtonum(const char *, long long, long long, const char **);
+
 static int czifd, dirfd, jsonfd;
 static int dojson, doextract, doscan;
 
@@ -35,31 +39,32 @@ void usage() {
             "   -d <dir>    directory for extracted JXR files\n"
             "   -h          print this help message\n"
             "   -j <file>   write CZI metadata to JSON file\n"
-            "   -s          scan for available tile resolutions\n\n"
+            "   -f <num>    filter extracted images to only extract those with the given subsampling level\n"
+            "   -s          scan for available tile subsampling levels (lower resolutions)\n\n"
+            "-i is mandatory; at least one of -j, -d and -s are required.\n"
             );
     exit(0);
 }
 
 void status_update() {
+#define STATUS_STRING   "Processing input file: %3lu%%"
     static long this_pct = 0;
     static long last_pct = 0;
     static int started = 0;
-
-    if (!started) {
-        started = 1;
-
-        dprintf(STDOUT_FILENO, "Processing input file:    0%");
-    }
+    int ret;
 
     this_pct = ((100 * xseek_offset()) / xseek_size());
     if (this_pct > last_pct) {
         last_pct = this_pct;
-        dprintf(STDOUT_FILENO, "\b\b\b\b%3lu%%", this_pct);
+        ret = dprintf(STDOUT_FILENO, STATUS_STRING, this_pct);
+        for (int i = 0; i < ret; i++)
+            dprintf(STDOUT_FILENO, "\b");
     }
 
     if (xseek_offset() == xseek_size()) {
         dprintf(STDOUT_FILENO, "\n");
     }
+#undef STATUS_STRING
 }
 
 int scan_next_segment() {
@@ -91,8 +96,10 @@ void print_resolutions() {
 
     czi_get_reslist(&list, &len);
 
+    dprintf(STDOUT_FILENO, "available subsampling levels (bigger number means smaller images):\n");
+    
     for (int i = 0; i < len; i++)
-        dprintf(1, "%u\n", list[i]);
+        dprintf(STDOUT_FILENO, "%u\n", list[i]);
 }
 
 /* process the next file segment */
@@ -145,9 +152,11 @@ int extract_next_segment() {
 
 int main(int argc, char *argv[]) {
     int ch;
+    int filterlevel = 0;
     char *czifn = NULL;
     char *dirfn = NULL;
     char *jsonfn = NULL;
+    const char *errstr;
 
     dojson = 0;
     doextract = 0;
@@ -155,11 +164,16 @@ int main(int argc, char *argv[]) {
     
     /* argument handling */
     
-    while ((ch = getopt(argc, argv, "+d:hi:j:s")) != -1) {
+    while ((ch = getopt(argc, argv, "+d:f:hi:j:s")) != -1) {
         switch (ch) {
         case 'd':
             doextract = 1;
             dirfn = optarg;
+            break;
+        case 'f':
+            filterlevel = strtonum(optarg, 1, INT_MAX, &errstr);
+            if (errstr)
+                ferrx(1, "invalid filter level: %s", errstr);
             break;
         case 'h':
             usage();
@@ -184,10 +198,13 @@ int main(int argc, char *argv[]) {
 
     if (!czifn)
         errx(1, "missing arguments (pass '-h' for help)");
-
+    
     if (!dojson && !doextract && !doscan)
         errx(1, "missing arguments (pass '-h' for help");
 
+    if (!doextract && filterlevel)
+        errx(1, "cannot specify filter level when not performing extraction");
+    
     if (doscan && (doextract || dojson))
         errx(1, "conflicting arguments (cannot perform resolution scan and tile extraction simultaneously)");
     
@@ -203,6 +220,7 @@ int main(int argc, char *argv[]) {
                 err(1, "could not open output directory %s", dirfn);
 
             czi_extract_setfd(dirfd);
+            czi_extract_setfilter(filterlevel);
         }
 
         if (dojson) {
