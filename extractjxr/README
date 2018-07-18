@@ -1,0 +1,11 @@
+This directory contains the source code for `extractjxr`, a utility for
+extracting image tiles out of a CZI image.
+
+To build, you must have libuuid installed (`uuid-dev` on Debian/Ubuntu
+derived system). Invoke `make` at the command line to build
+`extractjxr` and then run it with the `-h` flag to see available
+options.
+
+Note that the files under the `compat/` directory have been imported from
+OpenSMTPD, as some non-portable BSD extensions to the standard library are used.
+These files are copyright (c) their respective authors.
