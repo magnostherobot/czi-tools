@@ -51,7 +51,7 @@ bool tile_ll_comparator(void *a, void *b) {
 }
 
 void debug_region(const struct region *region) {
-    debug("u%d, d%d, l%d, r%d, z%d", region->up, region->down, region->left, region->right, region->scale);
+    debug("u%d, d%d, l%d, r%d, z%d\n", region->up, region->down, region->left, region->right, region->scale);
 }
 
 /*
@@ -77,8 +77,13 @@ struct region *intersection(struct region *a, struct region *b) {
 }
 
 bool overlaps(struct region *a, struct region *b) {
+    debug_region(a);
+    debug_region(b);
     struct region *i = intersection(a, b);
-    if (i) free(i);
+    if (i) {
+        free(i);
+        debug("%s\n", "yes");
+    } else debug("no\n");
     return (bool) i;
 }
 
@@ -120,11 +125,11 @@ int get_region(struct dirent *ent, struct region *buf) {
 }
 
 void print_tiles(llist *list) {
-    debug("%s", "--");
+    debug("%s\n", "--");
     for (struct ll_node *node = list; node; node = node->next) {
-        debug("%s", ((struct tile *) (node->content))->filename);
+        debug("%s\n", ((struct tile *) (node->content))->filename);
     }
-    debug("%s", "--");
+    debug("%s\n", "--");
 }
 
 llist *find_relevant_tiles(
@@ -186,7 +191,7 @@ int tiles_across(llist *tiles) {
     if (!tiles) return 0;
     uint32_t first_y = ((struct tile *) tiles->content)->region.up;
     int i = 1;
-    debug("%d", first_y);
+    debug("%d\n", first_y);
     for (struct ll_node *node = tiles->next; node && (((struct tile *) node->content)->region.up == first_y); node = node->next) {
         ++i;
     }
@@ -194,7 +199,7 @@ int tiles_across(llist *tiles) {
 }
 
 bool print_filename(void *tile, void *data) {
-    debug("%s", ((struct tile *) tile)->filename);
+    debug("%s\n", ((struct tile *) tile)->filename);
     return true;
 }
 
@@ -231,7 +236,7 @@ void stitch_region(struct region *desired, char *tile_dirname) {
 
     if (vips_image_write_to_file(vips_out, "./out.png", NULL))
         vips_error_exit(NULL);
-    debug("%s", "success?");
+    debug("%s\n", "success?");
 }
 
 void usage(char *prog) {

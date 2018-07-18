@@ -14,7 +14,7 @@ llist *ll_add_item(llist *list, void *content, ll_comparator *comp) {
     if (!new_node) return NULL;
     new_node->content = content;
     new_node->next = node;
-    debug("%p", (void *) prev);
+    debug("%p\n", (void *) prev);
     if (node) {
         if (prev) {
             prev->next = new_node;
