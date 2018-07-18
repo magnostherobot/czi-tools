@@ -1,4 +1,5 @@
 #ifndef _STACK_H
+#define _STACK_H
 
 // For malloc, realloc:
 #include <stdlib.h>
@@ -34,5 +35,4 @@
     x; \
 })
 
-#define _STACK_H
-#endif
+#endif /* _STACK_H */

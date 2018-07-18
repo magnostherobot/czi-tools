@@ -1,4 +1,5 @@
 #ifndef _LLIST_H
+#define _LLIST_H
 
 #include <stdbool.h>
 
@@ -17,5 +18,4 @@ bool ll_foreach(llist *list,ll_foreach_fn *fn, void *data);
 
 int ll_length(llist *list);
 
-#define _LLIST_H
-#endif
+#endif /* _LLIST_H */
