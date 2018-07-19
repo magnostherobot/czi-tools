@@ -19,7 +19,9 @@ Usage: deczi.sh [options] input_file
     -s          Scan for available subsampling ratios using extractjxr
     -p          Convert extracted images to PNG after converting from JXR to TIFF
     -h          Print this help message
-    
+
+If you run out of disk space during extraction or conversion, then "extractjxr" and "JxrDecApp"
+will silently exit and/or crash.
 EOF
 }
 
