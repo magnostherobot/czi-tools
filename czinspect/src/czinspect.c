@@ -11,16 +11,17 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "helptxt.h"
 #include "czinspect.h"
 #include "macros.h"
-#include "helptxt.h"
+
 
 /* getopt strings*/
 #define GETOPT_OPS    "SEDh"
 
 #define GETOPT_S_STR  ""
 #define GETOPT_E_STR  "d:"
-#define GETOPT_D_STR  "jo:"
+#define GETOPT_D_STR  "o:"
 #define GETOPT_OTHER  ""
 
 #define GETOPT_SETTINGS "+:"
@@ -40,12 +41,12 @@ static struct config cfg;
 #define END(x) _binary_helptxt_ ## x ## _help_end;
 
 /* print usage information out of embedded help text object file */
-void usage(struct config *c) {
+void usage() {
     char *start, *end;
     size_t len;
     ssize_t rv;
 
-    switch (c->operation) {
+    switch (cfg.operation) {
     case OP_NONE:
         start = START(main);
         end = END(main);
@@ -114,7 +115,7 @@ static void check_ops() {
         errx(1, "only one operation may be specified (pass '-h' for help)");
 
     if (cfg.help)
-        usage(&cfg);
+        usage();
 
     if (num == 0)
         errx(1, "no operation specified (pass '-h' for help)");
@@ -149,6 +150,15 @@ static void parse_args(int argc, char* argv[]) {
     }
 
     check_ops();
+
+    /* reset getopt and reprocess for operation specific options */
+    optind = 1;
+    switch (cfg.operation) {
+    default:
+        ferrx1(1, "internal option processing error");
+        break;
+    }
+    
 }
 
 int main(int argc, char *argv[]) {
