@@ -1,5 +1,5 @@
 CC ?= gcc
-CFLAGS ?= -Og -g3
+CFLAGS ?= -O2
 LDFLAGS ?= 
 BINNAME ?= extractjxr
 SOURCES = extractjxr.c mmap.c zeiss.c json.c compat/reallocarray.c compat/strtonum.c
