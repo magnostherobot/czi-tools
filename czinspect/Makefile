@@ -5,32 +5,53 @@ LDFLAGS ?=
 BINNAME ?= czinspect
 LIBS ?= 
 
-CCSRC = czinspect.c 
+CCSRC = $(wildcard src/*.c) 
 CCOBJ = ${CCSRC:.c=.o}
 HELPSRC = $(wildcard helptxt/*.help)
 HELPOBJ = ${HELPSRC:.help=.ho}
 OBJECTS = $(CCOBJ) $(HELPOBJ)
-HEADERS = helptxt.h
+
+GENDIR = includes
+GENHEADERS = helptxt.h config.h
+
+
+TOOLDIR = tools
+TOOLOUT = gen
 
 all: $(BINNAME)
 
-$(CCSRC): $(wildcard *.h) $(HEADERS)
+$(CCSRC): $(wildcard src/*.h) $(GENHEADERS)
 
 $(BINNAME): $(OBJECTS)
 	$(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+$(GENDIR) $(TOOLOUT):
+	mkdir $@
+
+$(GENHEADERS): $(GENDIR) $(TOOLOUT)
 
 %.ho: %.help
 	$(LD) -r -b binary -o $@ $^
 
 %.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $^ -I $(GENDIR) $(CFLAGS)
 
 clean:
-	rm -f $(BINNAME) $(OBJECTS) $(HEADERS)
+	rm -rf $(BINNAME) $(OBJECTS) $(GENDIR) $(TOOLOUT)
+
 
 helptxt.h:
-	echo '#ifndef _HELPTXT_H' >> $@
-	echo '#define _HELPTXT_H' >> $@
-	ls helptxt | tr '.' '_' | awk -f genhelp.awk >> $@
-	echo '#endif /* _HELPTXT_H */' >> $@
+	echo '#ifndef _HELPTXT_H' >> $(GENDIR)/$@
+	echo '#define _HELPTXT_H' >> $(GENDIR)/$@
+	ls helptxt | tr '.' '_' | awk -f $(TOOLDIR)/genhelp-h.awk >> $(GENDIR)/$@
+	echo '#endif /* _HELPTXT_H */' >> $(GENDIR)/$@
+
+config.h: configtest
+	$(TOOLOUT)/configtest > $(GENDIR)/$@
+
+configtest: $(TOOLDIR)/configtest.c
+	$(CC) -o $(TOOLOUT)/$@ $^ $(LDFLAGS)
+
+
+
 
