@@ -1,0 +1,96 @@
+version: 2
+jobs:
+  debian:
+    branches:
+      only:
+        - /.*/
+    docker:
+      - image: debian:stretch
+    steps:
+      - checkout
+      - run:
+          name: dependencies
+          command: apt-get update && apt-get install -y libvips-dev uuid-dev
+      - run:
+          name: build
+          command: make
+      - run:
+          name: test
+          command: make test
+  ubuntu-xenial:
+    branches:
+      only:
+        - /.*/
+    docker:
+      - image: ubuntu:xenial
+    steps:
+      - checkout
+      - run:
+          name: dependencies
+          command: apt-get update && apt-get install -y libvips-dev uuid-dev
+      - run:
+          name: build
+          command: make
+      - run:
+          name: test
+          command: make test
+  ubuntu-bionic:
+    branches:
+      only:
+        - /.*/
+    docker:
+      - image: ubuntu:bionic
+    steps:
+      - checkout
+      - run:
+          name: dependencies
+          command: apt-get update && apt-get install -y libvips-dev uuid-dev
+      - run:
+          name: build
+          command: make
+      - run:
+          name: test
+          command: make test
+  fedora-27:
+    branches:
+      only:
+        - /.*/
+    docker:
+      - image: fedora:27
+    steps:
+      - checkout
+      - run:
+          name: dependencies
+          command: dnf update && dnf install -y vips vips-devel uuid-devel
+      - run:
+          name: build
+          command: make
+      - run:
+          name: test
+          command: make test
+  fedora-28:
+    branches:
+      only:
+        - /.*/
+    docker:
+      - image: fedora:28
+    steps:
+      - checkout
+      - run:
+          name: dependencies
+          command: dnf update && dnf install -y vips vips-devel uuid-devel
+      - run:
+          name: build
+          command: make
+      - run:
+          name: test
+          command: make test
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - debian
+      - ubuntu-xenial
+      - ubuntu-bionic
+      - fedora-27
+      - fedora-28

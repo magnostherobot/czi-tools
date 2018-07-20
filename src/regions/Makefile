@@ -1,21 +1,21 @@
 MD ?= $(CC) -MM
 
 LDLIBS = $(shell pkg-config vips --libs)
-CFLAGS = $(shell pkg-config vips --cflags) -ggdb3 -Wall -pedantic -std=c99
+CFLAGS = $(shell pkg-config vips --cflags) -ggdb3 -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=200809L
 TARGET = get_region
 SRCS = $(wildcard *.c)
 
 TESTSRCS = $(wildcard *.test.c)
 TESTS = ${TESTSRCS:.c=}
 
-.DUMMY: default all clean test
+.PHONY: default all clean test
 
 default: all
 
 all: $(TARGET)
 
 $(TARGET): main.o region.o llist.o
-	$(CC) $(LDFLAGS) $(LDLIBS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.c
 	$(CC) -MMD -c $(CFLAGS) -o $@ $<
@@ -25,7 +25,7 @@ test: $(TESTS)
 	for t in $^ ; do "./$$t" ; done
 
 region.test: region.test.o region.o llist.o
-	$(CC) $(LDFLAGS) $(LDLIBS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 clean:
 	$(RM) *.d *.o get_region *.test
