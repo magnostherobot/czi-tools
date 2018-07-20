@@ -1,1 +1,9 @@
-This is a placeholder help message
+Usage: czinspect [operation] <file>
+
+Operations:
+    -D      Dump all metadata from the input file
+    -S      Scan metadata from the input file
+    -E      Extract data from the input file
+    -h      Print this help message
+
+Pass '-h' with an operation to see usage information for that operation.

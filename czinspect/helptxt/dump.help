@@ -1,1 +1,6 @@
-This is a placeholder help message
+Usage: czinspect -D [options] <file>
+
+Options:
+    -o <file>   Name of output file for dumped metadata. By default, output
+                is sent to standard output.
+

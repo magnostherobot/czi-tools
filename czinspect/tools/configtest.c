@@ -12,7 +12,9 @@
  * why we want to know it: CZI files are little endian; CZI files are typically
  * several gigabytes in size (i.e. more than four), so processes with a 32-bit
  * address space cannot map the entire file into core at once (therefore partial
- * mappings are required)
+ * mappings are required). I will be genuinely shocked if someone tries to run
+ * this on a machine whose word size is something other than 32 or 64 bits (if
+ * such hardware still exists).
  */
 
 int main() {

@@ -1,1 +1,4 @@
-This is a placeholder help message
+Usage: czinspect -S [options] <file>
+
+This operation does not have any other options.
+

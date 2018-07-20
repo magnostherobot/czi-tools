@@ -9,12 +9,14 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "helptxt.h"
 #include "czinspect.h"
 #include "macros.h"
-
+#include "compat/compat.h"
 
 /* getopt strings*/
 #define GETOPT_OPS    "SEDh"
@@ -22,11 +24,12 @@
 #define GETOPT_S_STR  ""
 #define GETOPT_E_STR  "d:"
 #define GETOPT_D_STR  "o:"
-#define GETOPT_OTHER  ""
+
+#define GETOPT_GLOBAL "m:"
 
 #define GETOPT_SETTINGS "+:"
 
-#define GETOPT_STRING GETOPT_SETTINGS GETOPT_OPS GETOPT_OTHER GETOPT_S_STR \
+#define GETOPT_STRING GETOPT_SETTINGS GETOPT_OPS GETOPT_GLOBAL GETOPT_S_STR \
     GETOPT_E_STR GETOPT_D_STR
 
 /* values for config.operation */
@@ -37,15 +40,15 @@
 
 static struct config cfg;
 
-#define START(x) _binary_helptxt_ ## x ## _help_start;
-#define END(x) _binary_helptxt_ ## x ## _help_end;
-
 /* print usage information out of embedded help text object file */
 void usage() {
     char *start, *end;
     size_t len;
     ssize_t rv;
 
+#define START(x) _binary_helptxt_ ## x ## _help_start;
+#define END(x) _binary_helptxt_ ## x ## _help_end;
+    
     switch (cfg.operation) {
     case OP_NONE:
         start = START(main);
@@ -64,7 +67,7 @@ void usage() {
         end = END(dump);
         break;
     default:
-        ferrx1(1, "error printing help text: unknown operation");
+        ferrx1("error printing help text: unknown operation");
         break;
     }
 
@@ -73,7 +76,7 @@ void usage() {
         if (rv == -1) {
             if (errno == EINTR || errno == EAGAIN)
                 continue;
-            ferr1(1, "error printing help text");
+            ferr1("error printing help text");
         }
 
         start += rv;
@@ -87,7 +90,7 @@ void usage() {
 }
 
 /* parse operations (denoted by a capital latin letter) */
-static void set_operation(int opt) {
+static void parse_operation(int opt) {
     switch (opt) {
     case 'S':
         cfg.operation |= OP_SCAN;
@@ -102,6 +105,70 @@ static void set_operation(int opt) {
         cfg.help = 1;
         break;
     }
+}
+
+/* parse global options */
+
+#ifdef SMALL_ADDRESS
+static int parse_page_multiplier(char *arg) {
+    char *errstr;
+    size_t ret;
+
+    ret = strtonum(arg, 1, SIZE_MAX, &errstr);
+    if (errstr)
+        errx(1, "invalid page multiplier '%s': %s", arg, errstr);
+
+    return ret;
+}
+#endif
+
+static int parse_opt_global(int opt) {
+    switch (opt) {
+    case 'm':
+#ifdef SMALL_ADDRESS
+        cfg.page_multiplier = parse_page_multiplier(optarg);
+#else
+        errx(1, "the '-m' option is not supported on this platform");
+#endif
+        return 1;
+    }
+
+    return 0;
+}
+
+/* process scanning options */
+static void parse_opt_scan(int opt) {
+    /* currently, no options which can be used in scanning mode are defined */
+    errx(1, "option '-%c' cannot be used with '-S'", opt);
+    return;
+}
+
+/* process extraction options */
+static void parse_opt_extract(int opt) {
+    switch (opt) {
+    case 'd':
+        cfg.outdir = optarg;
+        break;
+    default:
+        errx(1, "option '-%c' cannot be used with '-E'", opt);
+        break;
+    }
+
+    return;
+}
+
+/* process dumping options */
+static void parse_opt_dump(int opt) {
+    switch (opt) {
+    case 'o':
+        cfg.outdir = optarg;
+        break;
+    default:
+        errx(1, "option '-%c' cannot be used with '-D'", opt);
+        break;
+    }
+
+    return;
 }
 
 /* make sure that only one operation is defined */
@@ -130,7 +197,7 @@ static void badopt(int opt) {
     else if (opt == '?')
         errx(1, "unknown option '-%c' (pass '-h' for help)", optopt);
     else
-        ferrx1(1, "internal option parsing error");
+        ferrx1("internal option parsing error");
 }
 
 /* parse the given command line arguments */
@@ -144,7 +211,7 @@ static void parse_args(int argc, char* argv[]) {
             badopt(opt);
             break;
         default:
-            set_operation(opt);
+            parse_operation(opt);
             break;
         }
     }
@@ -153,15 +220,49 @@ static void parse_args(int argc, char* argv[]) {
 
     /* reset getopt and reprocess for operation specific options */
     optind = 1;
-    switch (cfg.operation) {
-    default:
-        ferrx1(1, "internal option processing error");
-        break;
+    while ((opt = getopt(argc, argv, GETOPT_STRING)) != -1) {
+        if (opt == '?' || opt == ':')
+            ferrx1("internal option processing error (bad option character)");
+        else if (strchr(GETOPT_OPS, opt) != NULL) /* operation found */
+            continue;
+
+        if (parse_opt_global(opt))
+            continue;
+        
+        switch (cfg.operation) {
+        case OP_SCAN:
+            parse_opt_scan(opt);
+            continue;
+        case OP_EXTRACT:
+            parse_opt_extract(opt);
+            continue;
+        case OP_DUMP:
+            parse_opt_dump(opt);
+            continue;
+        default:
+            ferrx1("internal option processing error (unknown operation)");
+            break;
+        }
     }
-    
+
+    argc -= optind;
+    argv += optind;
+
+    if (argc == 0)
+        errx(1, "missing input filename (pass '-h' for help)");
+    else if (argc > 1)
+        errx(1, "too many arguments (pass '-h' for help)");
+
+    cfg.infile = argv[0];
+
+    return;
 }
 
 int main(int argc, char *argv[]) {
+
+    if (isatty(STDOUT_FILENO))
+        cfg.progress_bar = 1;
+
     parse_args(argc, argv);
 }
 
