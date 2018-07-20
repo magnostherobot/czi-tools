@@ -1,10 +1,10 @@
 CC ?= gcc
 CFLAGS ?= -Og -g3
-LDFLAGS ?= 
+LDFLAGS ?=
 BINNAME ?= extractjxr
 SOURCES = extractjxr.c mmap.c zeiss.c json.c compat/reallocarray.c compat/strtonum.c
 OBJECTS = ${SOURCES:.c=.o}
-LIBS ?= 
+LIBS ?=
 
 all: $(BINNAME)
 
@@ -17,3 +17,5 @@ $(BINNAME): $(OBJECTS)
 clean:
 	rm -f $(BINNAME) $(OBJECTS)
 
+test:
+	# No-op for now
