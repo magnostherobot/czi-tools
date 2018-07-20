@@ -5,17 +5,24 @@
  * Callum Duff.
  */
 
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "config.h"
 #include "helptxt.h"
-#include "czinspect.h"
+
+#include "types.h"
+#include "mapfile.h"
 #include "macros.h"
+#include "operations.h"
+
 #include "compat/compat.h"
 
 /* getopt strings*/
@@ -107,29 +114,16 @@ static void parse_operation(int opt) {
     }
 }
 
-/* parse global options */
-
-#ifdef SMALL_ADDRESS
-static int parse_page_multiplier(char *arg) {
-    char *errstr;
-    size_t ret;
-
-    ret = strtonum(arg, 1, SIZE_MAX, &errstr);
-    if (errstr)
-        errx(1, "invalid page multiplier '%s': %s", arg, errstr);
-
-    return ret;
-}
-#endif
-
 static int parse_opt_global(int opt) {
+    size_t mult;
+    const char *errstr;
+    
     switch (opt) {
     case 'm':
-#ifdef SMALL_ADDRESS
-        cfg.page_multiplier = parse_page_multiplier(optarg);
-#else
-        errx(1, "the '-m' option is not supported on this platform");
-#endif
+        mult = strtonum((const char *) optarg, 1, 512, &errstr); /* XXX TODO: empirically figure out a nice upper limit for this */
+        if (errstr)
+            errx(1, "invalid page multiplier '%s': %s", optarg, errstr);
+        cfg.page_multiplier = mult;
         return 1;
     }
 
@@ -259,11 +253,39 @@ static void parse_args(int argc, char* argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-
+    struct map_ctx *infile_map;
+    
     if (isatty(STDOUT_FILENO))
         cfg.progress_bar = 1;
 
     parse_args(argc, argv);
+
+    if (!map_configure(&cfg))
+        errx(1, "could not configure memory-mapped file interface");
+    
+    if ((infile_map = map_open(cfg.infile, O_RDONLY, PROT_READ)) == NULL)
+        errx(1, "could not open input file for reading");
+
+    cfg.inctx = infile_map;
+    
+    switch (cfg.operation) {
+    case OP_SCAN:
+        do_scan(&cfg);
+        break;
+    case OP_DUMP:
+        do_dump(&cfg);
+        break;
+    case OP_EXTRACT:
+        do_extract(&cfg);
+        break;
+    default:
+        ferrx1("internal configuration error");
+        break;
+    }
+
+    map_close(infile_map);
+    
+    exit(0);
 }
 
 
