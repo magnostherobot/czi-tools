@@ -219,13 +219,13 @@ void czi_process_directory() {
                   entry->dimension_count);
 
         /* perform filter level checking if filtering was requested */
-        if (filterlevel) {
+        if (filterlevel != 0) {
             for (uint32_t j = 0; j < entry->dimension_count; j++)
                 czi_scan_dimentry(&entry->dim_entries[j]);
         }
     }
 
-    if (filterlevel && !reslist_contains(filterlevel))
+    if (filterlevel != 0 && !reslist_contains(filterlevel))
         ferrx(1, "no tiles exist in input file with subsampling ratio %d", filterlevel);
     
     calljson(write_directory, &directory);
@@ -342,7 +342,10 @@ void czi_process_subblock() {
     calljson(write_subblock, &sblk, fnames.metadata, fnames.data, fnames.attach);
 
     /* then jump into the scary heavy lifting */
-    if (extractfd != -1 && check_filterlevel(&sblk.dir_entry)) {
+    if (extractfd != -1) {
+        if (filterlevel != 0 && check_filterlevel(&sblk.dir_entry))
+            goto out; /* yeah yeah, it's a goto, but this is a quickfix */
+        
         if (sblk.metadata_size != 0)
             extract_data(fnames.metadata, sblk.metadata_size);
 
@@ -352,7 +355,9 @@ void czi_process_subblock() {
         if (sblk.attachment_size != 0)
             extract_data(fnames.attach, sblk.attachment_size);
     }
-        
+
+out:
+    
     free(sblk.dir_entry.dim_entries);
     free(fnames.suffix);
     free(fnames.metadata);
