@@ -1,26 +1,32 @@
-CC ?= gcc
-LD ?= ld
+CC = /usr/bin/gcc
+LD = ld
 CFLAGS ?= -Og -ggdb3
 LDFLAGS ?= 
 BINNAME ?= czinspect
 LIBS ?= 
 
-CCSRC = $(wildcard src/*.c) 
+CCSRC = $(wildcard src/*.c)
 CCOBJ = ${CCSRC:.c=.o}
+HEADERS = $(wildcard src/*.h) src/compat/compat.h
 HELPSRC = $(wildcard helptxt/*.help)
 HELPOBJ = ${HELPSRC:.help=.ho}
 OBJECTS = $(CCOBJ) $(HELPOBJ)
 
+ifeq ($(strip $(BSD)),)
+CCSRC += $(wildcard src/compat/*.c)
+CFLAGS += -DNOT_BSD
+endif
+
+
 GENDIR = includes
 GENHEADERS = helptxt.h config.h
-
 
 TOOLDIR = tools
 TOOLOUT = gen
 
 all: $(BINNAME)
 
-$(CCSRC): $(wildcard src/*.h) $(GENHEADERS)
+$(CCSRC): $(HEADERS) $(GENHEADERS)
 
 $(BINNAME): $(OBJECTS)
 	$(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
