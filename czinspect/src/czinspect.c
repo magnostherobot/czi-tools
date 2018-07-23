@@ -155,7 +155,7 @@ static void parse_opt_extract(int opt) {
 static void parse_opt_dump(int opt) {
     switch (opt) {
     case 'o':
-        cfg.outdir = optarg;
+        cfg.outfile = optarg;
         break;
     default:
         errx(1, "option '-%c' cannot be used with '-D'", opt);
