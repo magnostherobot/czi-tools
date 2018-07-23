@@ -12,9 +12,11 @@ struct map_ctx {
     int     fd;        /* file descriptor associated with a mapping */
     char   *fname;     /* name of the underlying file */
     size_t  fsize;     /* size of the underlying file */
+    int     mflags;    /* flags to pass to mmap */
     void   *ptr;       /* pointer to the beginning of the mapping */
-    off_t   offset;    /* offset within the current mapping */
+    size_t  offset;    /* offset within the current mapping -- not off_t as that's a signed type */
     size_t  chunknum;  /* chunk number within the file */
+    size_t  chunklen;  /* chunk length for this mapping */
 };
 
 struct config {
