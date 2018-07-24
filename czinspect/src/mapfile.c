@@ -28,12 +28,6 @@
 #define round_up(n, t)         (((n) % (t)) ? (((n) / (t)) + 1) * (t) : (n))
 #define to_pg_bound(n)         round_up(n, page_size)
 
-
-#define map_file_offset(c)     (c->chunknum * c->chunklen + c->offset)
-#define map_file_remaining(c)  (c->fsize - map_file_offset(c))
-#define map_chunk_ptr(c)       (c->ptr + c->offset)
-#define map_chunk_remain(c)    (c->chunklen - c->offset)
-
 static size_t page_size;
 static size_t def_chunklen;
 
@@ -56,23 +50,35 @@ int map_configure(struct config *cfg) {
     return 1;
 }
 
-/* open a file and mmap it */
-struct map_ctx *map_open(char *fname, int oflags, int mflags) {
+/* open a file and mmap it. depending on the flags, we may perform the open() ourselves */
+struct map_ctx *_map_open(char *fname, int nfd, size_t nsize, int oflags, int mflags) {
     struct map_ctx *new_ctx;
     struct stat statb;
     void *ptr;
     size_t sz;
+    size_t chunklen;
     int fd;
 
-    if ((fd = open(fname, oflags)) == -1)
-        return fwarn("could not open \"%s\"", fname), NULL;
+    if (nfd == -1) {
+        if ((fd = open(fname, oflags)) == -1)
+            return fwarn("could not open \"%s\"", fname), NULL;
+    } else {
+        fd = nfd;
+    }
 
-    if (fstat(fd, &statb) < 0)
-        return fwarn("could not stat file \"%s\"", fname), NULL;
+    if (nsize == 0) {
+        if (fstat(fd, &statb) < 0)
+            return fwarn("could not stat file \"%s\"", fname), NULL;
 
-    sz = statb.st_size;
+        sz = statb.st_size;
+    } else {
+        sz = nsize;
+    }
+
     
-    if ((ptr = mmap(NULL, def_chunklen, mflags, MAP_SHARED, fd, 0)) == MAP_FAILED)
+    chunklen = (sz < def_chunklen ? to_pg_bound(sz) : def_chunklen);
+    
+    if ((ptr = mmap(NULL, chunklen, mflags, MAP_SHARED, fd, 0)) == MAP_FAILED)
         return fwarn("could not map file \"%s\" into memory", fname), NULL;
     
     new_ctx = xmalloc(sizeof(struct map_ctx));
@@ -84,21 +90,21 @@ struct map_ctx *map_open(char *fname, int oflags, int mflags) {
     new_ctx->ptr = ptr;
     new_ctx->offset = 0;
     new_ctx->chunknum = 0;
-    new_ctx->chunklen = def_chunklen;
+    new_ctx->chunklen = chunklen;
 
     return new_ctx;
 }
 
-/* unmap a file and close it */
-void map_close(struct map_ctx *ctx) {
+/* unmap a file, close the descriptor if the flag is set */
+void _map_close(struct map_ctx *ctx, int flag) {
     if (munmap(ctx->ptr, ctx->chunklen) < 0)
         fwarnx("could not unmap file \"%s\" (this is probably an application bug)", ctx->fname);
 
-    if (close(ctx->fd) < 0)
-        fwarn("could not close file descriptor for file \"%s\"", ctx->fname);
-
     xfree(ctx->fname);
     xfree(ctx);
+
+    if (flag && close(ctx->fd) < 0)
+        fwarn("could not close file descriptor for file \"%s\"", ctx->fname);
 
     return;
 }

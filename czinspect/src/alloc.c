@@ -28,3 +28,28 @@ char *_xstrdup(const char *name, char *str) {
         ferr("could not duplicate string in function \"%s\"", name);
     return p;
 }
+
+/* volatile function pointer magic taken from OpenBSD explicit_bzero
+ * to avoid this call being optimised out */
+static void* (*volatile lzmemset)(void *, int, size_t) = memset;
+
+lzstring _lzstr_new(const char *name, size_t num, size_t sz) {
+    lzstring ret = malloc(sizeof(lzstring));
+    if (ret == NULL)
+        ferr("could not allocate dynamic string in function \"%s\"", name);
+
+    ret->data = reallocarray(NULL, num, sz);
+    if (ret->data == NULL)
+        ferr("could not allocate dynamic string in function \"%s\"", name);
+
+    ret->len = sz;
+    lzmemset(ret->data, 0, ret->len);
+
+    return ret;
+}
+
+void lzstr_free(lzstring l) {
+    free(l->data);
+    free(l);
+}
+        

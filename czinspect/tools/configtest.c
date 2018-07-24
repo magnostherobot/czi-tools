@@ -20,7 +20,7 @@
 int main() {
     uint32_t u32 = 0x44332211;
     uint32_t *u32ptr = &u32;
-    char *cptr = (unsigned char *) u32ptr;
+    unsigned char *cptr = (unsigned char *) u32ptr;
 
     dprintf(STDOUT_FILENO, "#ifndef _CONFIG_H\n");
     dprintf(STDOUT_FILENO, "#define _CONFIG_H\n");

@@ -19,7 +19,6 @@ CCSRC += $(wildcard src/compat/*.c)
 CFLAGS += -DNOT_BSD
 endif
 
-
 GENDIR = includes
 GENHEADERS = helptxt.h config.h
 

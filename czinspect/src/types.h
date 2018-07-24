@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+
 struct map_ctx {
     /* in effect, this is segment + offset addressing. our overall file offset
      * can be calculated by multiplying the chunk number with the chunk length
@@ -34,6 +35,5 @@ struct config {
     /* dumping options */
     char *outfile;
 };
-
 
 #endif /* _TYPES_H */
