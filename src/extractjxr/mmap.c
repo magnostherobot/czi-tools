@@ -38,7 +38,7 @@ int mapsetup(int fd) {
 
     if ((cziptr = mmap(NULL, round_up(filesize, page_size), PROT_READ,
                        MAP_SHARED, czifd, 0)) == MAP_FAILED)
-        warn("mapsetup: could not map memory");
+        return warn("mapsetup: could not map memory"), -1;
 
     fileoffset = 0;
     mapstarted = 1;
