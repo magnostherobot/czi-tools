@@ -19,6 +19,7 @@
 #include "helptxt.h"
 
 #include "types.h"
+#include "alloc.h"
 #include "mapfile.h"
 #include "macros.h"
 #include "operations.h"
@@ -29,7 +30,7 @@
 #define GETOPT_OPS    "SEDh"
 
 #define GETOPT_S_STR  ""
-#define GETOPT_E_STR  "d:"
+#define GETOPT_E_STR  "ad:es:"
 #define GETOPT_D_STR  "o:"
 
 #define GETOPT_GLOBAL "m:"
@@ -140,8 +141,18 @@ static void parse_opt_scan(int opt) {
 /* process extraction options */
 static void parse_opt_extract(int opt) {
     switch (opt) {
+    case 'a':
+        cfg.eflags |= EXT_F_ATTACH;
+        break;
     case 'd':
-        cfg.outdir = optarg;
+        cfg.outdir = xstrdup(optarg);
+        break;
+    case 'e':
+        cfg.eflags |= EXT_F_META;
+        break;
+    case 's':
+        cfg.eflags |= EXT_F_SBLK;
+        cfg.esopts = xstrdup(optarg);
         break;
     default:
         errx(1, "option '-%c' cannot be used with '-E'", opt);
@@ -155,7 +166,7 @@ static void parse_opt_extract(int opt) {
 static void parse_opt_dump(int opt) {
     switch (opt) {
     case 'o':
-        cfg.outfile = optarg;
+        cfg.outfile = xstrdup(optarg);
         break;
     default:
         errx(1, "option '-%c' cannot be used with '-D'", opt);
@@ -169,7 +180,7 @@ static void parse_opt_dump(int opt) {
 static void check_ops() {
     uint8_t num = 0;
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < sizeof(uint8_t) * 8; i++)
         num += (cfg.operation >> i) % 2;
 
     if (num > 1)
