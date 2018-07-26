@@ -31,6 +31,8 @@ struct config {
 
     /* extraction options */
     char *outdir;
+    uint8_t eflags;    /* whole-file extraction flags */
+    char *esopts;      /* option string for extracting data from subblocks */
 
     /* dumping options */
     char *outfile;
