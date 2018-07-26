@@ -38,20 +38,22 @@ int xfallocate(int fd, size_t sz) {
     struct map_ctx *ctx;
 
     if (sz == 0)
-        ferrx1("invalid argument, size parameter is set to zero");
+        return fwarnx1("invalid argument, size parameter is set to zero"), -1;
     
     if (zerofd == -1) {
         if ((zerofd = open(DEV_ZERO, O_RDONLY)) == -1)
-            ferr1("could not open " DEV_ZERO " for reading");
+            return fwarn1("could not open " DEV_ZERO " for reading"), -1;
     }
 
     if ((ctx = map_mopen(DEV_ZERO, zerofd, sz, PROT_READ)) == NULL)
-        ferrx1("could not map " DEV_ZERO " into memory");
+        return fwarnx1("could not map " DEV_ZERO " into memory"), -1;
 
-    if (map_dwrite(ctx, fd, sz) == -1)
-        ferrx1("could not write to output file");
+    if (map_dwrite(ctx, fd, sz) == -1) {
+        fwarnx1("could not write to output file");
+        map_mclose(ctx);
+        return -1;
+    }
 
     map_mclose(ctx);
-    
     return 0;
 }
