@@ -74,7 +74,6 @@ struct map_ctx *_map_open(char *fname, int nfd, size_t nsize, int oflags, int mf
     } else {
         sz = nsize;
     }
-
     
     chunklen = (sz < def_chunklen ? to_pg_bound(sz) : def_chunklen);
     
@@ -100,11 +99,11 @@ void _map_close(struct map_ctx *ctx, int flag) {
     if (munmap(ctx->ptr, ctx->chunklen) < 0)
         fwarnx("could not unmap file \"%s\" (this is probably an application bug)", ctx->fname);
 
-    xfree(ctx->fname);
-    xfree(ctx);
-
     if (flag && close(ctx->fd) < 0)
         fwarn("could not close file descriptor for file \"%s\"", ctx->fname);
+
+    xfree(ctx->fname);
+    xfree(ctx);
 
     return;
 }
