@@ -5,6 +5,7 @@
 #include <vips/vips.h>
 #include <unistd.h>
 #include <err.h>
+#include <getopt.h>
 
 #include "region.h"
 
