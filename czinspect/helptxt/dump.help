@@ -4,3 +4,4 @@ Options:
     -o <file>   Name of output file for dumped metadata. By default, output
                 is sent to standard output.
 
+This operation is currently unimplemented.

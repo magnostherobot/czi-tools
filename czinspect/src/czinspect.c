@@ -29,24 +29,26 @@
 #include "compat/compat.h"
 
 /* getopt strings*/
-#define GETOPT_OPS    "SEDh"
+#define GETOPT_OPS    "SEDCh"
 
 #define GETOPT_S_STR  ""
 #define GETOPT_E_STR  "ad:es:"
 #define GETOPT_D_STR  "o:"
+#define GETOPT_C_STR  ""
 
 #define GETOPT_GLOBAL "m:"
 
 #define GETOPT_SETTINGS "+:"
 
 #define GETOPT_STRING GETOPT_SETTINGS GETOPT_OPS GETOPT_GLOBAL GETOPT_S_STR \
-    GETOPT_E_STR GETOPT_D_STR
+    GETOPT_E_STR GETOPT_D_STR GETOPT_C_STR
 
 /* values for config.operation */
 #define OP_NONE      0x00
 #define OP_SCAN      0x01
 #define OP_EXTRACT   0x02
 #define OP_DUMP      0x04
+#define OP_CHECK     0x08
 
 static struct config cfg;
 
@@ -75,6 +77,10 @@ void usage() {
     case OP_DUMP:
         start = START(dump);
         end = END(dump);
+        break;
+    case OP_CHECK:
+        start = START(check);
+        end = END(check);
         break;
     default:
         ferrx1("error printing help text: unknown operation");
@@ -110,6 +116,9 @@ static void parse_operation(int opt) {
         break;
     case 'D':
         cfg.operation |= OP_DUMP;
+        break;
+    case 'C':
+        cfg.operation |= OP_CHECK;
         break;
     case 'h':
         cfg.help = 1;
@@ -175,6 +184,13 @@ static void parse_opt_dump(int opt) {
         break;
     }
 
+    return;
+}
+
+/* process checking options */
+static void parse_opt_check(int opt) {
+    /* currently, no options which can be used in checking mode are defined */
+    errx(1, "option '-%c' cannot be used with '-C'", opt);
     return;
 }
 
@@ -246,6 +262,9 @@ static void parse_args(int argc, char* argv[]) {
         case OP_DUMP:
             parse_opt_dump(opt);
             continue;
+        case OP_CHECK:
+            parse_opt_check(opt);
+            continue;
         default:
             ferrx1("internal option processing error (unknown operation)");
             break;
@@ -290,6 +309,9 @@ int main(int argc, char *argv[]) {
         break;
     case OP_EXTRACT:
         do_extract(&cfg);
+        break;
+    case OP_CHECK:
+        do_check(&cfg);
         break;
     default:
         ferrx1("internal configuration error");

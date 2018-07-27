@@ -7,7 +7,6 @@
 
 #define czi_subblock_dim_ratio(d)    ((d)->stored_size == 0 ? 1 : ((d)->size / (d)->stored_size))
 
-void update_progress_bar(struct map_ctx *);
 int xfallocate(int, size_t);
 
 #endif /* _UTIL_H */
