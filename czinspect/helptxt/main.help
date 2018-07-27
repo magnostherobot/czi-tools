@@ -1,15 +1,19 @@
-Usage: czinspect [operation] <file>
+OBUsage: czinspect [operation] <file>
 
 Operations:
     -D          Dump all metadata from the input file
     -S          Scan metadata from the input file
     -E          Extract data from the input file
+    -C          Perform a consistency check on the input file's internal 
+                metadata
     -h          Print this help message
 
 Global options:
     -m <num>    When mapping files into memory, map "num" pages of memory at 
                 one time for each file. (This option should only be used on
-                memory-constrained 32-bit systems.)
+                32-bit systems.)
+
+**NOTE**: Only the '-E' operation is implemented at this time!
 
 Pass '-h' with an operation to see usage information and options specific to
 that operation.

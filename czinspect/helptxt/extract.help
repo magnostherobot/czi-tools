@@ -2,4 +2,18 @@ Usage: czinspect -E [options] <file>
 
 Options:
     -d <dir>    Output directory for extracted data files
+    -a          Extract file attachments
+    -e          Extract file metadata
+    -s <str>    Extract the subblock components specified by the comma seperated
+                list of sections specified in "str"
 
+Extractable subblock sections:
+    attach      Subblock attachments
+    meta        Subblock metadata
+    data        Subblock data
+    all         All three of the above; equivalent to "attach,meta,data"
+
+Subblock data is usually a JPEG-XR format image.
+
+The default behaviour is to behave as if '-a -e -s all' has been specified if
+none of those options are explicitly given.

@@ -15,23 +15,6 @@
 
 #define DEV_ZERO "/dev/zero"
 
-/* progress bar handling */
-void update_progress_bar(struct map_ctx *c) {
-    static unsigned int this_pct = 0;
-    static unsigned int last_pct = 0;
-
-    this_pct = ((100 * map_file_offset(c)) / c->fsize);
-    if (this_pct > last_pct) {
-        last_pct = this_pct;
-        dprintf(STDOUT_FILENO, "Processing input file: %3u%%\r", this_pct);
-    }
-
-    if (map_file_offset(c) == c->fsize)
-        dprintf(STDOUT_FILENO, "\n");
-
-    return;
-}
-
 /* portable (if hacky) function which does something similar to
  * posix_fallocate(3). for best results, truncate the file named by fd to zero
  * bytes beforehand by opening with O_TRUNC or using ftruncate(2) */

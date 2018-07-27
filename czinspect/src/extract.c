@@ -193,7 +193,7 @@ static void extract_attachments(struct map_ctx *c, uint64_t pos) {
         if (czi_read_attach(c, &att) == -1)
             ferrx1("could not read attachment segment");
 
-        lzsprintf(aname, "attach-name-%" PRIu32, i + 1); /* if this fails, it will die in lzstr_grow() */
+        lzsprintf(aname, "attach-data-%" PRIu32, i + 1); /* if this fails, it will die in lzstr_grow() */
 
         if (write_file(aname->data, c, att.data_size) == -1)
             ferrx("could not write file attachment #%" PRIu32, i + 1);
@@ -241,10 +241,17 @@ static void make_suffix(lzstring str, struct czi_subblock_dimentry *dims, uint32
 }
 
 static void extract_subblock(struct map_ctx *c) {
+    struct czi_seg_header head;
     struct czi_subblock sblk;
     struct czi_subblock_dimentry *entry;
     size_t offset;
 
+    if (czi_read_sh(c, &head) == -1)
+        ferrx1("could not read segment header");
+
+    if (czi_getsegid(&head) != ZISRAWSUBBLOCK)
+        ferrx1("incorrect subblock segment id");
+    
     offset = map_file_offset(c);
     
     if (czi_read_subblock(c, &sblk) == -1)
@@ -310,12 +317,67 @@ static void extract_subblock(struct map_ctx *c) {
     return;
 }
 
+static void extract_sblk_directory(struct map_ctx *c, uint64_t pos) {
+    struct czi_seg_header head;
+    struct czi_directory cdir;
+    struct czi_subblock_direntry sdir;
+    size_t offset;
+
+    fname = lzstr_new();
+    suffix = lzstr_new();
+    dimensions = lzbuf_new(struct czi_subblock_dimentry);
+    
+    if (map_seek(c, pos, MAP_SET) == -1)
+        ferrx("could not seek to %" PRIu64 " to read directory segment", pos);
+
+    if (czi_read_sh(c, &head) == -1)
+        ferrx1("could not read segment header");
+
+    if (czi_getsegid(&head) != ZISRAWDIRECTORY)
+        ferrx1("incorrect directory segment id");
+
+    if (czi_read_directory(c, &cdir) == -1)
+        ferrx1("could not read directory segment");
+
+    if (cdir.entry_count == 0) {
+        fwarnx1("directory entry segment");
+    }
+
+    for (uint32_t i = 0; i < cdir.entry_count; i ++) {
+        if (czi_read_sblk_direntry(c, &sdir) == -1)
+            ferrx("could not read directory entry #%" PRIu32, i + 1);
+
+        if (sdir.dimension_count == 0) {
+            fwarnx("directory entry #%" PRIu32 " has no dimension entries, continuing...", i + 1);
+            continue;
+        }
+
+        if (map_seek(c, sdir.dimension_count * sizeof(struct czi_subblock_dimentry), MAP_FORW) == -1)
+            ferrx("could not seek past %" PRIu32 "dimension entries in directory entry #%" PRIu32,
+                  sdir.dimension_count, i + 1);
+
+        offset = map_file_offset(c);
+
+        if (map_seek(c, sdir.file_position, MAP_SET) == -1)
+            ferrx("could not seek to subblock segment starting at offset %" PRIu64, sdir.file_position);
+
+        extract_subblock(c);
+
+        if (map_seek(c, offset, MAP_SET) == -1)
+            ferrx("could not seek to previous offset %" PRIu64 " to resume scanning subblocks", offset);
+    }
+
+    lzstr_free(fname);
+    lzstr_free(suffix);
+    lzbuf_free(dimensions);
+    
+    return;
+}
+        
 void do_extract(struct config *cfg) {
     struct czi_seg_header head;
     struct czi_zrf zisrf;
     struct map_ctx *c;
-    size_t next_segment;
-    enum czi_seg_t segtype;
 
     parse_opts(cfg);
     
@@ -330,8 +392,6 @@ void do_extract(struct config *cfg) {
 
     if (czi_getsegid(&head) != ZISRAWFILE)
         ferrx1("input file does not start with a ZISRAWFILE segment");
-
-    next_segment = map_file_offset(c) + head.allocated_size;
 
     if (czi_read_zrf(c, &zisrf) == -1)
         ferrx1("could not read ZISRAWFILE segment");
@@ -355,66 +415,14 @@ void do_extract(struct config *cfg) {
         }
     }
 
-    /* if subblock extraction is not requested, return early */
-    if ((ext_opts & EXT_F_SBLK) == 0)
-        return;
-
-    fname = lzstr_new();
-    suffix = lzstr_new();
-    dimensions = lzbuf_new(struct czi_subblock_dimentry);
-    
-    if (map_seek(c, next_segment, MAP_SET) == -1)
-        ferrx("could not seek to nest segment at offset %" PRIu64, next_segment);
-    
-    /* start scanning loop */
-    while (map_file_offset(c) < c->fsize) {
-        if (czi_read_sh(c, &head) == -1)
-            ferrx1("could not read next segment header");
-
-        next_segment = map_file_offset(c) + head.allocated_size;
-
-        segtype = czi_getsegid(&head);
-
-        if (segtype == UNKNOWN)
-            fwarnx("unknown segment header type \"%.16s\" found in input file, continuing...", head.name);
-        else if (segtype == ZISRAWSUBBLOCK)
-            extract_subblock(c);
-
-        if (map_seek(c, next_segment, MAP_SET) == -1)
-            ferrx("could not seek to nest segment at offset %" PRIu64, next_segment);
-
-        if (cfg->progress_bar)
-            update_progress_bar(c);
+    if (ext_opts & EXT_F_SBLK) {
+        if (zisrf.directory_position == 0) {
+            /* as above */
+            fwarnx1("file subblock extraction requested but none found, continuing...");
+        } else {
+            extract_sblk_directory(c, zisrf.directory_position);
+        }
     }
-
-    lzstr_free(fname);
-    lzstr_free(suffix);
-    lzbuf_free(dimensions);
     
     return;
-/*
-    c = cfg->inctx;
-    
-    while (map_file_offset(c) < c->fsize) {
-        if (czi_read_sh(c, &head) == -1)
-            ferrx1("could not read next segment header");
-
-        next_segment = map_file_offset(c) + head.allocated_size;
-
-        segtype = czi_getsegid(&head);
-
-        if (segtype == UNKNOWN)
-            fwarnx("unknown segment header type \"%.16s\" found in input file (continuing...)", head.name);
-        else if (segtype == ZISRAWSUBBLOCK)
-            extract_subblock(c);
-        else if (segtype == ZISRAWMETADATA)
-            extract_metadata(c);
-        else if (segtype == ZISRAWATTACH)
-            extract_attachment(c);
-
-        map_seek(c, next_segment, MAP_SET);
-        
-        if (cfg->progress_bar)
-            update_progress_bar(c);
-            }*/
 }

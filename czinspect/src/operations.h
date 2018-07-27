@@ -11,6 +11,7 @@
 void do_scan(struct config *);
 void do_extract(struct config *);
 void do_dump(struct config *);
+void do_check(struct config *);
 
 #endif /* _OPERATIONS_H */
 

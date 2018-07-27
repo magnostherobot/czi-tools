@@ -10,3 +10,7 @@ void do_scan(struct config *cfg) {
 void do_dump(struct config *cfg) {
     return;
 }
+
+void do_check(struct config *cfg) {
+    return;
+}
