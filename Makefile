@@ -1,3 +1,5 @@
+export CFLAGS = -O1
+
 .PHONY: all default clean test
 
 default: all

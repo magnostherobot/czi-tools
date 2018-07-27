@@ -1,10 +1,11 @@
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <vips/vips.h>
 #include <unistd.h>
 #include <err.h>
 
-#include "config.h"
 #include "region.h"
 
 void usage(char *prog) {

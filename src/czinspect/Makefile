@@ -1,6 +1,6 @@
 CC ?= /usr/bin/gcc
 LD ?= ld
-CFLAGS ?= -g3
+CFLAGS ?= -Og -ggdb3
 LDFLAGS ?=
 BINNAME ?= czinspect
 LIBS ?=
