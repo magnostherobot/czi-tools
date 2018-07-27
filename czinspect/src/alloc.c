@@ -1,4 +1,6 @@
 
+#include "config.h"
+
 #include <err.h>
 #include <stdarg.h>
 #include <stdio.h>

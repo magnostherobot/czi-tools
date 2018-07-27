@@ -1,4 +1,6 @@
 
+#include "config.h"
+
 #include "types.h"
 
 void do_scan(struct config *cfg) {

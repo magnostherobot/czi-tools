@@ -5,6 +5,8 @@
  * Callum Duff.
  */
 
+#include "config.h"
+
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>

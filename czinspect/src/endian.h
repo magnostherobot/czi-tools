@@ -7,7 +7,7 @@
 
 /* magic endianness switching for platforms that require it */
 
-#ifdef BIG_ENDIAN
+#ifdef IS_BIG_ENDIAN
 # define SWITCH_ENDS(v) switch_endianness((char *) v, sizeof(*v))
 
 static inline void switch_endianness(char *val, size_t sz) {
