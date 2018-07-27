@@ -1,9 +1,9 @@
 
+#include "config.h"
+
 #include <sys/types.h>
 #include <err.h>
 #include <stdint.h>
-
-#include "config.h"
 
 #include "zeiss.h"
 #include "endian.h"
@@ -22,7 +22,7 @@
             return -1;                                              \
     } while (0)
 
-#ifdef BIG_ENDIAN
+#ifdef IS_BIG_ENDIAN
 # define SWE(t, m) do {                           \
         t tmp = data->m;                          \
         SWITCH_ENDS(&tmp);                        \

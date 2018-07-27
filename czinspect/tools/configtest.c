@@ -7,37 +7,43 @@
 /* simple config test program */
 
 /* 
- * what we want to know: machine wordsize and endianness 
- *
- * why we want to know it: CZI files are little endian; CZI files are typically
- * several gigabytes in size (i.e. more than four), so processes with a 32-bit
- * address space cannot map the entire file into core at once (therefore partial
- * mappings are required). I will be genuinely shocked if someone tries to run
- * this on a machine whose word size is something other than 32 or 64 bits (if
- * such hardware still exists).
+ * this program tests machine byte order and pointer size. we also test if we're
+ * compiling on Darwin, as slightly different macros are required to expose recent
+ * POSIX functions.
  */
+
+const char posixmacro[] =
+#if defined(__APPLE__) || defined(__MACH__)
+    "_DARWIN_C_SOURCE"
+#else
+    "_POSIX_C_SOURCE"
+#endif
+    ;
 
 int main() {
     uint32_t u32 = 0x44332211;
     uint32_t *u32ptr = &u32;
     unsigned char *cptr = (unsigned char *) u32ptr;
+    unsigned long posixver = 200809L;
 
-    dprintf(STDOUT_FILENO, "#ifndef _CONFIG_H\n");
-    dprintf(STDOUT_FILENO, "#define _CONFIG_H\n");
+    printf("#ifndef _CONFIG_H\n");
+    printf("#define _CONFIG_H\n");
 
     /* test address space size */
     if (sizeof(uintptr_t) <= sizeof(uint32_t)) {
-        dprintf(STDOUT_FILENO, "#define SLIDING_MMAP\n");
+        printf("#define SLIDING_MMAP\n");
     }
 
     /* test endianness */
     if (*cptr == 0x44) {
-        dprintf(STDOUT_FILENO, "#define BIG_ENDIAN\n");
+        printf("#define IS_BIG_ENDIAN\n");
     } else if (*cptr != 0x11) { /* detect weirdness */
         errx(1, "could not determine machine endianness");
     }
 
-    dprintf(STDOUT_FILENO, "#endif /* _CONFIG_H */\n");
+    printf("#define %s %luL\n", posixmacro, posixver);
+    
+    printf("#endif /* _CONFIG_H */\n");
     
     exit(0);
 }

@@ -12,7 +12,7 @@ HELPSRC = $(wildcard helptxt/*.help)
 HELPOBJ = ${HELPSRC:.help=.ho}
 OBJECTS = $(CCOBJ) $(HELPOBJ)
 
-CFLAGS += -std=c99 -Wall -Werror -D_POSIX_C_SOURCE=200809L
+CFLAGS += -std=c99 -Wall -Werror
 
 ifeq ($(strip $(BSD)),)
 CCSRC += $(wildcard src/compat/*.c)
