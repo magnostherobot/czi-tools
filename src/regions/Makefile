@@ -1,7 +1,10 @@
-MD ?= $(CC) -MM
+CC ?= cc
+CFLAGS ?= -Og -ggdb3
 
-LDLIBS = $(shell pkg-config vips --libs)
-CFLAGS = $(shell pkg-config vips --cflags) -ggdb3 -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=200809L
+LDLIBS += $(shell pkg-config vips --libs)
+CFLAGS += $(shell pkg-config vips --cflags)
+
+CFLAGS += -Wall -Werror -std=c99
 TARGET = get_region
 SRCS = $(wildcard *.c)
 

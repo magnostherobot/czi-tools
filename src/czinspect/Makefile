@@ -1,9 +1,9 @@
-CC = /usr/bin/gcc
-LD = ld
-CFLAGS ?= -Og -ggdb3
-LDFLAGS ?= 
+CC ?= /usr/bin/gcc
+LD ?= ld
+CFLAGS ?= -g3
+LDFLAGS ?=
 BINNAME ?= czinspect
-LIBS ?= 
+LIBS ?=
 
 CCSRC = $(wildcard src/*.c)
 CCOBJ = ${CCSRC:.c=.o}
@@ -59,6 +59,7 @@ config.h: configtest
 configtest: $(TOOLDIR)/configtest.c
 	$(CC) -o $(TOOLOUT)/$@ $^ $(LDFLAGS)
 
-
+test:
+	# no-op for now
 
 
