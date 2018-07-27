@@ -22,7 +22,8 @@ $(TARGET): main.o region.o llist.o
 
 %.o: %.c
 	$(CC) -MMD -c $(CFLAGS) -o $@ $<
-	sed -i 's,\($*\.o\)[ :]*\(.*\), $@ : $$\(wildcard \2\)\n\1 : \2,g' $*.d
+	sed -i'.bak' 's,\($*\.o\)[ :]*\(.*\), $@ : $$\(wildcard \2\)\n\1 : \2,g' $*.d
+	$(RM) $*.d.bak
 
 test: $(TESTS)
 	for t in $^ ; do "./$$t" ; done
