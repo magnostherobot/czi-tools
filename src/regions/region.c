@@ -16,8 +16,6 @@
 #include <errno.h>
 // For vips image manipulation:
 #include <vips/vips.h>
-// For getopt:
-#include <unistd.h>
 // For errx:
 #include <err.h>
 
@@ -130,7 +128,7 @@ llist *find_relevant_tiles(
     llist *included_tiles = NULL;
     DIR *dir = opendir(tile_dirname);
     if (!dir) {
-        err(errno, tile_dirname);
+        err(errno, "%s", tile_dirname);
     }
     struct dirent *ent;
     while ((ent = readdir(dir))) {
@@ -174,7 +172,7 @@ VipsImage **get_tile_data(llist *tiles, char *tile_dirname) {
     *(fn_mid++) = '/';
     VipsImage **v = ret;
     struct filenamedata fnd = {
-        .start = fn_buf, .mid = fn_mid, v = v
+        .start = fn_buf, .mid = fn_mid, .v = v
     };
     ll_foreach(tiles, &ll_get_one_tile, &fnd);
     return ret;

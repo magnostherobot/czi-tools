@@ -1,0 +1,126 @@
+language: c
+script:
+  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+  - make && make test
+
+matrix:
+  include:
+
+    # GCC on Linux
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'ppa:ubuntu-toolchain-r/test'
+          packages:
+            - gcc-4.9
+      env:
+        - MATRIX_EVAL="CC=gcc-4.9"
+
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'ppa:ubuntu-toolchain-r/test'
+          packages:
+            - gcc-5
+      env:
+        - MATRIX_EVAL="CC=gcc-5"
+
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'ppa:ubuntu-toolchain-r/test'
+          packages:
+            - gcc-6
+      env:
+        - MATRIX_EVAL="CC=gcc-6"
+
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'ppa:ubuntu-toolchain-r/test'
+          packages:
+            - gcc-7
+      env:
+        - MATRIX_EVAL="CC=gcc-7"
+
+    # Clang on Linux
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'ppa:ubuntu-toolchain-r/test'
+            - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.8 main'
+          packages:
+            - clang-3.8
+      env:
+        - MATRIX_EVAL="CC=clang-3.8"
+
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main'
+          packages:
+            - clang-3.9
+      env:
+        - MATRIX_EVAL="CC=clang-3.9"
+
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-4.0 main'
+          packages:
+            - clang-4.0
+      env:
+        - MATRIX_EVAL="CC=clang-4.0"
+
+    - os: linux
+      dist: xenial
+      sudo: required
+      addons:
+        apt:
+          sources:
+            - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main'
+          packages:
+            - clang-5.0
+      env:
+        - MATRIX_EVAL="CC=clang-5.0"
+
+before_install:
+  - export MAKEFLAGS="-j$(nproc)"
+  - |
+    sudo systemctl stop apt-daily.timer &&
+    sudo systemctl stop apt-daily.service &&
+    sudo systemctl kill --kill-who=all apt-daily.service &&
+    while ! (systemctl list-units --all apt-daily.service | fgrep -q dead) ; do
+      sleep 1
+    done &&
+    sudo apt-get update -q
+
+install:
+  - sudo apt-get install -y libvips-dev uuid-dev
+
+before_script:
+  - eval "${MATRIX_EVAL}"
+
+script:
+  - make && make test

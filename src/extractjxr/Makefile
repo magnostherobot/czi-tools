@@ -1,5 +1,6 @@
 CC ?= gcc
-CFLAGS ?= -Og -g3
+CFLAGS ?= -Og -ggdb3
+CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200809L
 LDFLAGS ?=
 BINNAME ?= extractjxr
 SOURCES = extractjxr.c mmap.c zeiss.c json.c compat/reallocarray.c compat/strtonum.c

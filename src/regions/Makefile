@@ -1,31 +1,35 @@
-MD ?= $(CC) -MM
+CC ?= cc
+CFLAGS ?= -Og -ggdb3
 
-LDLIBS = $(shell pkg-config vips --libs)
-CFLAGS = $(shell pkg-config vips --cflags) -ggdb3 -Wall -pedantic -std=c99
+LDLIBS += $(shell pkg-config vips --libs)
+CFLAGS += $(shell pkg-config vips --cflags)
+
+CFLAGS += -Wall -Werror -std=c99
 TARGET = get_region
 SRCS = $(wildcard *.c)
 
 TESTSRCS = $(wildcard *.test.c)
 TESTS = ${TESTSRCS:.c=}
 
-.DUMMY: default all clean test
+.PHONY: default all clean test
 
 default: all
 
 all: $(TARGET)
 
 $(TARGET): main.o region.o llist.o
-	$(CC) $(LDFLAGS) $(LDLIBS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.c
 	$(CC) -MMD -c $(CFLAGS) -o $@ $<
-	sed -i 's,\($*\.o\)[ :]*\(.*\), $@ : $$\(wildcard \2\)\n\1 : \2,g' $*.d
+	sed -i'.bak' 's,\($*\.o\)[ :]*\(.*\), $@ : $$\(wildcard \2\)\n\1 : \2,g' $*.d
+	$(RM) $*.d.bak
 
 test: $(TESTS)
 	for t in $^ ; do "./$$t" ; done
 
 region.test: region.test.o region.o llist.o
-	$(CC) $(LDFLAGS) $(LDLIBS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 clean:
 	$(RM) *.d *.o get_region *.test

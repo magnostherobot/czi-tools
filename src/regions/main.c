@@ -1,8 +1,11 @@
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <vips/vips.h>
 #include <unistd.h>
 #include <err.h>
+#include <getopt.h>
 
 #include "region.h"
 
