@@ -105,56 +105,19 @@ matrix:
       env:
         - MATRIX_EVAL="CC=clang-5.0"
 
-    # GCC on OSX
-    - os: osx
-      osx_image: xcode8
-      env:
-        - MATRIX_EVAL="CC=gcc-4.9"
-
-    - os: osx
-      osx_image: xcode8
-      env:
-        - MATRIX_EVAL="brew install gcc@5 && CC=gcc-5"
-
-    - os: osx
-      osx_image: xcode8
-      env:
-        - MATRIX_EVAL="brew install gcc@6 && CC=gcc-6"
-
-    - os: osx
-      osx_image: xcode8
-      env:
-        - MATRIX_EVAL="brew install gcc@7 && CC=gcc-7"
-
-    # Clang on OSX
-    - os: osx
-      osx_image: xcode8
-      env:
-        - MATRIX_EVAL="brew install llvm && brew link --overwrite llvm --force && CC=/usr/local/bin/clang"
-
 before_install:
   - export MAKEFLAGS="-j$(nproc)"
   - |
-    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      brew update
-    else
-      sudo systemctl stop apt-daily.timer &&
-      sudo systemctl stop apt-daily.service &&
-      sudo systemctl kill --kill-who=all apt-daily.service &&
-      while ! (systemctl list-units --all apt-daily.service | fgrep -q dead) ; do
-        sleep 1
-      done &&
-      sudo apt-get update -q
-    fi
+    sudo systemctl stop apt-daily.timer &&
+    sudo systemctl stop apt-daily.service &&
+    sudo systemctl kill --kill-who=all apt-daily.service &&
+    while ! (systemctl list-units --all apt-daily.service | fgrep -q dead) ; do
+      sleep 1
+    done &&
+    sudo apt-get update -q
 
 install:
-  - |
-    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      brew install vips --with-imagemagick --without-graphicsmagick --with-openexr --with-openslide
-      brew install ossp-uuid
-    else
-      sudo apt-get install -y libvips-dev uuid-dev
-    fi
+  - sudo apt-get install -y libvips-dev uuid-dev
 
 before_script:
   - eval "${MATRIX_EVAL}"
