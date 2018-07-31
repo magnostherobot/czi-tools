@@ -2,17 +2,19 @@
 
 set -e
 
-DECZI="deczi.sh"
+CZINSPECT="czinspect"
 
 usage () {
     cat<<EOF
-Usage: $0 [options] input_folder
+Usage: batch.sh [operation] <in_folder>
 
-    Options:
-    -d <dir>   Directory to extract image tiles to
-    -f <level> Specify subsampling level to filter for
-    -p         Convert extracted images to PNG after converting from JXR to TIFF
-    -h         Print this help message
+This a wrapper script around czinspect, and will pass most options directly to
+czinspect.
+
+czinspect's help text:
+---
+$($CZINSPECT $opts -h $*)
+---
 EOF
 }
 
@@ -21,20 +23,23 @@ error () {
     exit 1
 }
 
-while getopts ":d:f:ph" opt; do
+outdir=""
+opts=""
+
+while getopts "Ehd:aes:" opt; do
     case $opt in
     d)
         outdir="$OPTARG"
         ;;
-    f)
-        decziopts="$decziopts -$opt $OPTARG"
-        ;;
-    p)
-        decziopts="$decziopts -$opt"
-        ;;
     h)
         usage
         exit 0
+        ;;
+    E|a|e)
+        opts="$opts -$opt"
+        ;;
+    s)
+        opts="$opts -$opt $OPTARG"
         ;;
     esac
 done
@@ -52,7 +57,7 @@ fi
 INDIR="$1"
 indirsafe="$(echo $INDIR | sed 's/[[\.*^$,]/\\&/g')"
 
-find $INDIR -name '*.czi' \
+find $INDIR -maxdepth 1 -name '*.czi' \
     | xargs -I'{}' sh -c "out=\"\$(echo '{}' \
         | sed 's,$indirsafe/*\(.*\).czi\$,$outdir/\1,g')\" ; \
-        mkdir -p \"\$out\" ; '$DECZI' -d\"\$out\" '{}'"
+        mkdir -p \"\$out\" ; '$CZINSPECT' $opts -d\"\$out\" '{}'"
