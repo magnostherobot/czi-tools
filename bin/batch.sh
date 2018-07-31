@@ -9,7 +9,7 @@ usage () {
 Usage: $0 [options] input_folder
 
     Options:
-    -d <dir>   Directory to extract image tiles to (implies extraction should be performed)
+    -d <dir>   Directory to extract image tiles to
     -f <level> Specify subsampling level to filter for
     -p         Convert extracted images to PNG after converting from JXR to TIFF
     -h         Print this help message
@@ -43,6 +43,10 @@ shift $((OPTIND - 1))
 
 if (( $# == 0 )); then
     error "Missing input directory"
+fi
+
+if [[ -z "$outdir" ]]; then
+    error "Missing output directory"
 fi
 
 INDIR="$1"
