@@ -298,7 +298,7 @@ static void extract_subblock(struct map_ctx *c) {
     offset = 256 - offset;
     if (offset > 0)
         if (map_seek(c, offset, MAP_FORW) == -1)
-            ferrx("cannot seek forwards %" PRIu64 " bytes", offset);
+            ferrx("cannot seek forwards %zu bytes", offset);
     
     make_suffix(suffix, dimensions, sblk.dir_entry.dimension_count);
 
@@ -388,7 +388,7 @@ static void extract_sblk_directory(struct map_ctx *c, uint64_t pos) {
         extract_subblock(c);
 
         if (map_seek(c, offset, MAP_SET) == -1)
-            ferrx("could not seek to previous offset %" PRIu64 " to resume scanning subblocks", offset);
+            ferrx("could not seek to previous offset %zu to resume scanning subblocks", offset);
     }
 
     lzstr_free(fname);
