@@ -74,7 +74,7 @@ F(zrf, czi_zrf) {
 
     SW32(file_part);
     SW64(directory_position);
-    SW32(metadata_position);
+    SW64(metadata_position);
     SW32(update_pending);
     SW64(attachment_directory_position);
         
@@ -137,7 +137,7 @@ F(directory, czi_directory) {
 F(atmt_entry, czi_attach_entry) {
     READM();
 
-    SW32(file_position);
+    SW64(file_position);
     SW32(file_part);
 
     return 0;
