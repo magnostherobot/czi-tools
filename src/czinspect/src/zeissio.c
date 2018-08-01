@@ -6,7 +6,6 @@
 #include <stdint.h>
 
 #include "zeiss.h"
-#include "endian.h"
 #include "mapfile.h"
 #include "types.h"
 
@@ -23,71 +22,94 @@
     } while (0)
 
 #ifdef IS_BIG_ENDIAN
-# define SWE(t, m) do {                           \
-        t tmp = data->m;                          \
-        SWITCH_ENDS(&tmp);                        \
-        data->m = tmp;                            \
-    } while (0)
+# define SW32(v)  data->v = sw32(data->v)
+# define SW64(v)  data->v = sw64(data->v)
+# define SWF(f)   data->f = swf(data->f)
+
+static uint32_t sw32(uint32_t v) {
+    return ((v & 0xff) << 24) | (((v >> 8) & 0xff) << 16) | (((v >> 16) & 0xff) << 8) | ((v >> 24) & 0xff);
+}
+
+static uint64_t sw64(uint64_t v) {
+    return ((v & 0xff) << 56) | (((v >> 8) & 0xff) << 48) | (((v >> 16) & 0xff) << 40) | (((v >> 24) & 0xff) << 32) |
+        (((v >> 32) & 0xff) << 24) | (((v >> 40) & 0xff) << 16) | (((v >> 48) & 0xff) << 8) | ((v >> 56) & 0xff);
+}
+
+static float swf(float f) {
+    float ret;
+    unsigned char *in = (char *) &f;
+    unsigned char *out = (char *) &ret;
+
+    out[0] = in[3];
+    out[1] = in[2];
+    out[2] = in[1];
+    out[3] = in[0];
+    
+    return ret;
+}
+
 #else
-# define SWE(t, n)
+# define SW32(v)
+# define SW64(v)
+# define SWF(v)
 #endif
 
 /* read in a segment header */
 F(sh, czi_seg_header) {
     READM();
 
-    SWE(uint64_t, allocated_size);
-    SWE(uint64_t, used_size);
-
+    SW64(allocated_size);
+    SW64(used_size);
+    
     return 0;
 }
 
 F(zrf, czi_zrf) {
     READM();
 
-    SWE(uint32_t, major);
-    SWE(uint32_t, minor);
-    SWE(uint32_t, reserved1);
-    SWE(uint32_t, reserved2);
+    SW32(major);
+    SW32(minor);
+    SW32(reserved1);
+    SW32(reserved2);
 
-    SWE(uint32_t, file_part);
-    SWE(uint64_t, directory_position);
-    SWE(uint32_t, metadata_position);
-    SWE(uint32_t, update_pending);
-    SWE(uint64_t, attachment_directory_position);
-    
+    SW32(file_part);
+    SW64(directory_position);
+    SW64(metadata_position);
+    SW32(update_pending);
+    SW64(attachment_directory_position);
+        
     return 0;
 }
 
 F(metadata, czi_metadata) {
     READM();
 
-    SWE(uint32_t, xml_size);
-    SWE(uint32_t, attachment_size);
-    
+    SW32(xml_size);
+    SW32(attachment_size);
+        
     return 0;
 }
 
 F(sblk_dimentry, czi_subblock_dimentry) {
     READM();
 
-    SWE(int32_t, start);
-    SWE(uint32_t, size);
-    SWE(float, start_coordinate);
-    SWE(uint32_t, stored_size);
-
+    SW32(start);
+    SW32(size);
+    SWF(start_coordinate);
+    SW32(stored_size);
+    
     return 0;
 }
 
 F(sblk_direntry, czi_subblock_direntry) {
     READM();
 
-    SWE(uint32_t, pixel_type);
-    SWE(uint64_t, file_position);
-    SWE(uint32_t, file_part);
-    SWE(uint32_t, compression);
-    SWE(uint32_t, dimension_count);
-    
+    SW32(pixel_type);
+    SW64(file_position);
+    SW32(file_part);
+    SW32(compression);
+    SW32(dimension_count);
+        
     return 0;
 }
 
@@ -97,9 +119,9 @@ F(subblock, czi_subblock) {
     READM2(attachment_size);
     READM2(data_size);
 
-    SWE(uint32_t, metadata_size);
-    SWE(uint32_t, attachment_size);
-    SWE(uint64_t, data_size);
+    SW32(metadata_size);
+    SW32(attachment_size);
+    SW64(data_size);
 
     return czi_read_sblk_direntry(ctx, &data->dir_entry);
 }
@@ -107,7 +129,7 @@ F(subblock, czi_subblock) {
 F(directory, czi_directory) {
     READM();
 
-    SWE(uint32_t, entry_count);
+    SW32(entry_count);
 
     return 0;
 }
@@ -115,8 +137,8 @@ F(directory, czi_directory) {
 F(atmt_entry, czi_attach_entry) {
     READM();
 
-    SWE(uint64_t, file_position);
-    SWE(int32_t, file_part);
+    SW64(file_position);
+    SW32(file_part);
 
     return 0;
 }
@@ -131,7 +153,7 @@ F(attach, czi_attach) {
 
     READM2(reserved2);
 
-    SWE(uint32_t, data_size);
+    SW32(data_size);
 
     return 0;
 }
@@ -139,7 +161,7 @@ F(attach, czi_attach) {
 F(atmt_dir, czi_attach_dir) {
     READM();
 
-    SWE(uint32_t, entry_count);
+    SW32(entry_count);
 
     return 0;
 }

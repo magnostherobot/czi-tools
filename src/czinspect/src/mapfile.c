@@ -138,17 +138,17 @@ int map_seek(struct map_ctx *ctx, size_t offset, int whence) {
     switch (whence) {
     case MAP_SET:
         if (offset > ctx->fsize)
-            return fwarnx("invalid seek offset of %" PRIi64, offset), -1;
+            return fwarnx("invalid seek offset of %zu", offset), -1;
         target = offset;
         break;
     case MAP_FORW:
         if (map_file_remaining(ctx) + offset > ctx->fsize)
-            return fwarnx("invalid seek offset of %" PRIi64, offset), -1;
+            return fwarnx("invalid seek offset of %zu", offset), -1;
         target = map_file_offset(ctx) + offset;
         break;
     case MAP_BACK:
         if (offset > map_file_offset(ctx))
-            return fwarnx("invalid seek offset of %" PRIi64, offset), -1;
+            return fwarnx("invalid seek offset of %zu", offset), -1;
         target = map_file_offset(ctx) - offset;
         break;
     default:
@@ -173,7 +173,7 @@ int map_seek(struct map_ctx *ctx, size_t offset, int whence) {
 int map_read(struct map_ctx *ctx, void *buf, size_t len) {
 
     if (len > map_file_remaining(ctx))
-        return fwarnx("cannot read %" PRIu64 " bytes from \"%s\"", len, ctx->fname), -1;
+        return fwarnx("cannot read %zu bytes from \"%s\"", len, ctx->fname), -1;
 
     while ((ctx->offset + len) > ctx->chunklen) {
         memcpy(buf, map_chunk_ptr(ctx), map_chunk_remain(ctx));
@@ -200,7 +200,7 @@ static int write_loop(int fd, void *buf, size_t len) {
             if (errno == EINTR || errno == EAGAIN)
                 continue;
 
-            return fwarn("cannot write %" PRIu64" bytes to file descriptor %u",
+            return fwarn("cannot write %zu bytes to file descriptor %u",
                          len, fd), -1;
         }
 
@@ -215,7 +215,7 @@ static int write_loop(int fd, void *buf, size_t len) {
 int map_dwrite(struct map_ctx *ctx, int fd, size_t len) {
 
     if (len > map_file_remaining(ctx))
-        return fwarnx("cannot read %" PRIu64 " bytes from \"%s\"", len, ctx->fname), -1;
+        return fwarnx("cannot read %zu bytes from \"%s\"", len, ctx->fname), -1;
 
     while ((ctx->offset + len) > ctx->chunklen) {
         if (write_loop(fd, map_chunk_ptr(ctx), map_chunk_remain(ctx)) == -1)
@@ -240,7 +240,7 @@ int map_splice(struct map_ctx *from, struct map_ctx *to, size_t len) {
     size_t adv;            /* how many bytes to advance in the loop */
     
     if (len > map_file_remaining(from) || len > map_file_remaining(to))
-        return fwarnx("cannot copy %" PRIu64 " bytes from \"%s\" to \"%s\"",
+        return fwarnx("cannot copy %zu bytes from \"%s\" to \"%s\"",
                       len, from->fname, to->fname), -1;
 
     while ((from->offset + len) > from->chunklen || (to->offset + len) > to->chunklen) {

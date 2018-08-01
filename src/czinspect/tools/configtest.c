@@ -12,19 +12,11 @@
  * POSIX functions.
  */
 
-const char posixmacro[] =
-#if defined(__APPLE__) || defined(__MACH__)
-    "_DARWIN_C_SOURCE"
-#else
-    "_POSIX_C_SOURCE"
-#endif
-    ;
 
 int main() {
     uint32_t u32 = 0x44332211;
     uint32_t *u32ptr = &u32;
     unsigned char *cptr = (unsigned char *) u32ptr;
-    unsigned long posixver = 200809L;
 
     printf("#ifndef _CONFIG_H\n");
     printf("#define _CONFIG_H\n");
@@ -41,8 +33,12 @@ int main() {
         errx(1, "could not determine machine endianness");
     }
 
-    printf("#define %s %luL\n", posixmacro, posixver);
-    
+#if defined(__APPLE__)
+    printf("#define _DARWIN_C_SOURCE 200809L\n");
+#else
+    printf("#define _DEFAULT_SOURCE\n");
+#endif
+
     printf("#endif /* _CONFIG_H */\n");
     
     exit(0);
