@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 set -e
 
@@ -26,7 +26,7 @@ error () {
 outdir=""
 opts=""
 
-while getopts "Ehd:aes:" opt; do
+while getopts "EShd:f:gaes:" opt; do
     case $opt in
     d)
         outdir="$OPTARG"
@@ -35,10 +35,10 @@ while getopts "Ehd:aes:" opt; do
         usage
         exit 0
         ;;
-    E|a|e)
+    E|S|a|e|g)
         opts="$opts -$opt"
         ;;
-    s)
+    s|f)
         opts="$opts -$opt $OPTARG"
         ;;
     esac
