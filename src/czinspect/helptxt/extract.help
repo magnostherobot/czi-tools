@@ -4,6 +4,11 @@ Options:
     -d <dir>    Output directory for extracted data files
     -a          Extract file attachments
     -e          Extract file metadata
+    -f <val>    Extract only those subblock components whose subsampling level
+                is equal to "val"
+    -g          If the subsampling level provided to '-f' is not found in the
+                input file, then round the value down to the nearest subsampling
+                level
     -s <str>    Extract the subblock components specified by the comma seperated
                 list of sections specified in "str"
 

@@ -38,7 +38,7 @@ char *_xstrdup(const char *name, char *str) {
 static void* (*volatile lzmemset)(void *, int, size_t) = memset;
 
 lzstring _lzstr_new(const char *name, size_t num, size_t sz) {
-    lzstring ret = malloc(sizeof(lzstring));
+    lzstring ret = malloc(sizeof(struct lzstring_s));
     if (ret == NULL)
         nerr1(name, "could not allocate dynamic string");
 

@@ -32,7 +32,7 @@
 #define GETOPT_OPS    "SEDCh"
 
 #define GETOPT_S_STR  ""
-#define GETOPT_E_STR  "ad:es:"
+#define GETOPT_E_STR  "ad:ef:gs:"
 #define GETOPT_D_STR  "o:"
 #define GETOPT_C_STR  ""
 
@@ -151,6 +151,9 @@ static void parse_opt_scan(int opt) {
 
 /* process extraction options */
 static void parse_opt_extract(int opt) {
+    const char *errstr;
+    uint16_t filt;
+    
     switch (opt) {
     case 'a':
         cfg.eflags |= EXT_F_ATTACH;
@@ -160,6 +163,16 @@ static void parse_opt_extract(int opt) {
         break;
     case 'e':
         cfg.eflags |= EXT_F_META;
+        break;
+    case 'f':
+        filt = strtonum((const char *) optarg, 1, UINT16_MAX, &errstr);
+        if (errstr)
+            errx(1, "invalid filter level '%s': %s", optarg, errstr);
+        cfg.filter = filt;
+        cfg.eflags |= EXT_F_FILT;
+        break;
+    case 'g':
+        cfg.eflags |= EXT_F_FFUZZ;
         break;
     case 's':
         cfg.eflags |= EXT_F_SBLK;
