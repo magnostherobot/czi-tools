@@ -13,7 +13,7 @@ Global options:
                 one time for each file. (This option should only be used on
                 32-bit systems.)
 
-**NOTE**: Only the '-E' operation is implemented at this time!
+**NOTE**: Only the '-E' and '-S' operations are implemented at this time!
 
 Pass '-h' with an operation to see usage information and options specific to
 that operation.
