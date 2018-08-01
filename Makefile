@@ -18,5 +18,5 @@ test:
 	$(MAKE) test -C src/czinspect
 
 bin: all
-	ln -s ./src/regions/get_region  ./bin/get_region
-	ln -s ./src/czinspect/czinspect ./bin/czinspect
+	ln -fs ../src/regions/get_region  ./bin/get_region
+	ln -fs ../src/czinspect/czinspect ./bin/czinspect
