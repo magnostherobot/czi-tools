@@ -37,6 +37,7 @@ enum subopt_index {
 static int dirfd;
 static uint8_t sblk_opts;
 static uint8_t ext_opts;
+static uint8_t filt_opts;
 static uint32_t filterlevel;
 static lzstring fname;
 static lzstring suffix;
@@ -93,20 +94,23 @@ static void parse_opts(struct config *cfg) {
         }
 
         xfree(cfg->esopts);
-    } else if (cfg->eflags & EXT_F_FILT) {
-        errx(1, "cannot perform subsampling level filtering when not extracting subblocks");
-    } else if (cfg->eflags & EXT_F_FFUZZ) {
-        errx(1, "cannot perform rounded subsampling level filtering when not extracting subblocks");
     }
 
-    if ((cfg->eflags & EXT_F_FFUZZ) == EXT_F_FFUZZ && (cfg->eflags & EXT_F_FILT) == 0)
-        errx(1, "cannot round subsampling level when not performing filtering");
-    
     if (cfg->eflags == 0) {
         ext_opts = (EXT_F_META | EXT_F_SBLK | EXT_F_ATTACH);
         sblk_opts = EXT_S_ALL;
-    } else
+    } else {
         ext_opts = cfg->eflags;
+    }
+
+    if (((ext_opts & EXT_F_SBLK) == 0) && (cfg->filtflags & (EXT_FI_FILT | EXT_FI_FFUZZ))) {
+        errx(1, "cannot perform subsampling level filtering when not extracting subblocks");
+    }
+
+    if ((cfg->filtflags & EXT_FI_FFUZZ) == EXT_FI_FFUZZ && (cfg->filtflags & EXT_FI_FILT) == 0)
+        errx(1, "cannot round subsampling level when not performing filtering");
+
+    filt_opts = cfg->filtflags;
     
     return;
 }
@@ -401,8 +405,10 @@ static void extract_sblk_directory(struct map_ctx *c, uint64_t pos) {
 static void setup_filterlevel(struct config *cfg, struct map_ctx *c, uint64_t dirpos) {
     lzbuf reslist;
     uint32_t rnum = 0;
+    uint32_t max = 0;
+    uint32_t l;
 
-    if ((cfg->eflags & EXT_F_FILT) == 0)
+    if ((filt_opts & EXT_FI_FILT) == 0)
         return;
 
     if (map_seek(c, dirpos, MAP_SET) == -1)
@@ -414,12 +420,22 @@ static void setup_filterlevel(struct config *cfg, struct map_ctx *c, uint64_t di
     if (make_reslist(c, reslist, &rnum) == -1)
         ferrx1("could not scan for subsampling levels in input file");
 
-    for (uint32_t i = 0; i < rnum; i++)
-        if ((cfg->eflags & EXT_F_FFUZZ) ?
-            (lzbuf_get(uint32_t, reslist, i) <= cfg->filter) :
-            (lzbuf_get(uint32_t, reslist, i) == cfg->filter))
-            filterlevel = lzbuf_get(uint32_t, reslist, i);
-    
+
+    if (filt_opts & EXT_FI_FFUZZ) {
+        for (uint32_t i = 0; i < rnum; i++) {
+            l = lzbuf_get(uint32_t, reslist, i);
+
+            if (l <= cfg->filter && l > max) {
+                filterlevel = l;
+                max = l;
+            }
+        }
+    } else {
+        for (uint32_t i = 0; i < rnum; i++)
+            if (lzbuf_get(uint32_t, reslist, i) == cfg->filter)
+                filterlevel = cfg->filter;
+    }
+        
     if (filterlevel == 0)
         errx(1, "invalid filter level: %" PRIu32, cfg->filter);
 

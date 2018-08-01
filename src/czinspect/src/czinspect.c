@@ -169,10 +169,10 @@ static void parse_opt_extract(int opt) {
         if (errstr)
             errx(1, "invalid filter level '%s': %s", optarg, errstr);
         cfg.filter = filt;
-        cfg.eflags |= EXT_F_FILT;
+        cfg.filtflags |= EXT_FI_FILT;
         break;
     case 'g':
-        cfg.eflags |= EXT_F_FFUZZ;
+        cfg.filtflags |= EXT_FI_FFUZZ;
         break;
     case 's':
         cfg.eflags |= EXT_F_SBLK;
