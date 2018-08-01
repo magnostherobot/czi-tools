@@ -11,12 +11,12 @@ all:
 clean:
 	$(MAKE) clean -C src/regions
 	$(MAKE) clean -C src/czinspect
-	$(RM) $(PWD)/bin/get_region $(PWD)/bin/czinspect
+	$(RM) ./bin/get_region ./bin/czinspect
 
 test:
 	$(MAKE) test -C src/regions
 	$(MAKE) test -C src/czinspect
 
 bin: all
-	ln -s $(PWD)/src/regions/get_region  $(PWD)/bin/get_region
-	ln -s $(PWD)/src/czinspect/czinspect $(PWD)/bin/czinspect
+	ln -s ./src/regions/get_region  ./bin/get_region
+	ln -s ./src/czinspect/czinspect ./bin/czinspect
