@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -36,6 +37,7 @@ enum subopt_index {
 static int dirfd;
 static uint8_t sblk_opts;
 static uint8_t ext_opts;
+static uint32_t filterlevel;
 static lzstring fname;
 static lzstring suffix;
 static lzbuf dimensions;
@@ -91,8 +93,15 @@ static void parse_opts(struct config *cfg) {
         }
 
         xfree(cfg->esopts);
+    } else if (cfg->eflags & EXT_F_FILT) {
+        errx(1, "cannot perform subsampling level filtering when not extracting subblocks");
+    } else if (cfg->eflags & EXT_F_FFUZZ) {
+        errx(1, "cannot perform rounded subsampling level filtering when not extracting subblocks");
     }
 
+    if ((cfg->eflags & EXT_F_FFUZZ) == EXT_F_FFUZZ && (cfg->eflags & EXT_F_FILT) == 0)
+        errx(1, "cannot round subsampling level when not performing filtering");
+    
     if (cfg->eflags == 0) {
         ext_opts = (EXT_F_META | EXT_F_SBLK | EXT_F_ATTACH);
         sblk_opts = EXT_S_ALL;
@@ -207,10 +216,13 @@ static void extract_attachments(struct map_ctx *c, uint64_t pos) {
     return;
 }
 
-static void make_suffix(lzstring str, struct czi_subblock_dimentry *dims, uint32_t count) {
+static void make_suffix(lzstring str, lzbuf diments, uint32_t count) {
     char dimname[5];
     lzstring tmp;
+    struct czi_subblock_dimentry *dims;
 
+    dims = &lzbuf_get(struct czi_subblock_dimentry, diments, 0);
+    
     /* null termination, for sanity */
     memcpy(&dimname, dims->dimension, 4);
     dimname[4] = '\0';
@@ -224,7 +236,7 @@ static void make_suffix(lzstring str, struct czi_subblock_dimentry *dims, uint32
     tmp = lzstr_new();
     
     for (uint32_t i = 1; i < count; i++) {
-        dims += sizeof(struct czi_subblock_dimentry);
+        dims = &lzbuf_get(struct czi_subblock_dimentry, diments, i);
         
         lzstr_zero(tmp);
 
@@ -245,6 +257,7 @@ static void extract_subblock(struct map_ctx *c) {
     struct czi_subblock sblk;
     struct czi_subblock_dimentry *entry;
     size_t offset;
+    uint32_t level;
 
     if (czi_read_sh(c, &head) == -1)
         ferrx1("could not read segment header");
@@ -266,12 +279,20 @@ static void extract_subblock(struct map_ctx *c) {
         lzbuf_grow(struct czi_subblock_dimentry, dimensions);
 
     uint32_t i;
-    for (i = 0, entry = &lzbuf_get(struct czi_subblock_dimentry, dimensions, 0);
-         i < sblk.dir_entry.dimension_count;
-         i++, entry += sizeof(struct czi_subblock_dimentry))
-        if (map_read(c, entry, sizeof(struct czi_subblock_dimentry)) == -1)
+    for (i = 0; i < sblk.dir_entry.dimension_count; i++) {
+        entry = &lzbuf_get(struct czi_subblock_dimentry, dimensions, i);
+        if (czi_read_sblk_dimentry(c, entry) == -1)
             ferrx1("could not read subblock dimension entries");
+    }
 
+    if (filterlevel != 0) {
+        level = get_subsample_level(dimensions, sblk.dir_entry.dimension_count);
+        if (level != filterlevel) {
+            lzbuf_zero(dimensions);
+            return;
+        }
+    }
+    
     /* fix file offset */
     offset = map_file_offset(c) - offset;
     offset = 256 - offset;
@@ -279,7 +300,7 @@ static void extract_subblock(struct map_ctx *c) {
         if (map_seek(c, offset, MAP_FORW) == -1)
             ferrx("cannot seek forwards %" PRIu64 " bytes", offset);
     
-    make_suffix(suffix, (struct czi_subblock_dimentry *) dimensions->data, sblk.dir_entry.dimension_count);
+    make_suffix(suffix, dimensions, sblk.dir_entry.dimension_count);
 
     if (sblk.metadata_size != 0) {
         if (sblk_opts & EXT_S_META) {
@@ -314,6 +335,8 @@ static void extract_subblock(struct map_ctx *c) {
         }
     }
 
+    lzbuf_zero(dimensions);
+    
     return;
 }
 
@@ -340,7 +363,8 @@ static void extract_sblk_directory(struct map_ctx *c, uint64_t pos) {
         ferrx1("could not read directory segment");
 
     if (cdir.entry_count == 0) {
-        fwarnx1("directory entry segment");
+        /* in this case, we fall past the loop */
+        fwarnx1("directory entry segment contains no entries");
     }
 
     for (uint32_t i = 0; i < cdir.entry_count; i ++) {
@@ -373,7 +397,35 @@ static void extract_sblk_directory(struct map_ctx *c, uint64_t pos) {
     
     return;
 }
-        
+
+static void setup_filterlevel(struct config *cfg, struct map_ctx *c, uint64_t dirpos) {
+    lzbuf reslist;
+    uint32_t rnum = 0;
+
+    if ((cfg->eflags & EXT_F_FILT) == 0)
+        return;
+
+    if (map_seek(c, dirpos, MAP_SET) == -1)
+        ferrx("could not seek to offset %" PRIu64 " to read subblock directory for subsampling scan",
+              dirpos);
+
+    reslist = lzbuf_new(uint32_t);
+
+    if (make_reslist(c, reslist, &rnum) == -1)
+        ferrx1("could not scan for subsampling levels in input file");
+
+    for (uint32_t i = 0; i < rnum; i++)
+        if ((cfg->eflags & EXT_F_FFUZZ) ?
+            (lzbuf_get(uint32_t, reslist, i) <= cfg->filter) :
+            (lzbuf_get(uint32_t, reslist, i) == cfg->filter))
+            filterlevel = lzbuf_get(uint32_t, reslist, i);
+    
+    if (filterlevel == 0)
+        errx(1, "invalid filter level: %" PRIu32, cfg->filter);
+
+    return;
+}
+
 void do_extract(struct config *cfg) {
     struct czi_seg_header head;
     struct czi_zrf zisrf;
@@ -420,6 +472,7 @@ void do_extract(struct config *cfg) {
             /* as above */
             fwarnx1("file subblock extraction requested but none found, continuing...");
         } else {
+            setup_filterlevel(cfg, c, zisrf.directory_position);
             extract_sblk_directory(c, zisrf.directory_position);
         }
     }

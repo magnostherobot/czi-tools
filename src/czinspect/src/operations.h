@@ -7,6 +7,8 @@
 #define EXT_F_META   0x01
 #define EXT_F_ATTACH 0x02
 #define EXT_F_SBLK   0x04
+#define EXT_F_FILT   0x08
+#define EXT_F_FFUZZ  0x10 /* round the extraction level */
 
 void do_scan(struct config *);
 void do_extract(struct config *);
