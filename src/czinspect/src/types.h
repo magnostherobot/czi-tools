@@ -32,6 +32,7 @@ struct config {
     /* extraction options */
     char *outdir;
     uint8_t eflags;    /* whole-file extraction flags */
+    uint8_t filtflags; /* extraction filtering flags */
     uint32_t filter;   /* filter level */
     char *esopts;      /* option string for extracting data from subblocks */
 
