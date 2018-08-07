@@ -1,4 +1,4 @@
-# CZI Extractor [![Build Status](https://travis-ci.com/magnostherobot/zeiss.svg?token=w7ew2jpnKbReLg9cZxN1&branch=master)](https://travis-ci.com/magnostherobot/zeiss)
+# CZI Extractor [![Build Status](https://travis-ci.org/magnostherobot/czi-tools.svg?branch=master)](https://travis-ci.org/magnostherobot/czi-tools)
 
 Software for extracting images and metadata from Carl Zeiss Images (`.czi`
 files). This format is in use in microscopy.
