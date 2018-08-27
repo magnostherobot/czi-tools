@@ -7,6 +7,7 @@ CFLAGS += $(shell pkg-config vips --cflags)
 CFLAGS += -Wall -Werror -std=c99
 TARGET = get_region
 SRCS = $(wildcard *.c)
+DEPS = ${SRCS:.c=.d}
 
 TESTSRCS = $(wildcard *.test.c)
 TESTS = ${TESTSRCS:.c=}
@@ -22,11 +23,11 @@ $(TARGET): main.o region.o llist.o
 
 %.o: %.c
 	$(CC) -MMD -c $(CFLAGS) -o $@ $<
-	sed -i'.bak' 's,\($*\.o\)[ :]*\(.*\), $@ : $$\(wildcard \2\)\n\1 : \2,g' $*.d
+	sed -i'.bak' 's,\($*\.o\)[ :]*\(.*\),$@:$$\(wildcard \2\),g' $*.d
 	$(RM) $*.d.bak
 
 test: $(TESTS)
-	for t in $^ ; do "./$$t" ; done
+	for t in $^ ; do echo "$$t:" ; "./$$t" ; done
 
 region.test: region.test.o region.o llist.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -34,4 +35,4 @@ region.test: region.test.o region.o llist.o
 clean:
 	$(RM) *.d *.o get_region *.test
 
--include ${SRCS:.c=.d}
+-include $(DEPS)
