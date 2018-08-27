@@ -1,4 +1,4 @@
-export CFLAGS = -O1
+export CFLAGS = -O3 -DNDEBUG
 
 .PHONY: all default clean test bin
 
