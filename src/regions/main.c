@@ -7,6 +7,7 @@
 #include <err.h>
 #include <getopt.h>
 
+#include "main.h"
 #include "region.h"
 
 void usage(char *prog) {
@@ -32,20 +33,24 @@ int main(int argc, char *argv[]) {
     char *tile_dirname = NULL;
     char *output_name = NULL;
     int scale = 1;
+
+    struct options opts = {
+        .filename_value_base = 10
+    };
+
     struct {
         char *up;
         char *down;
         char *left;
         char *right;
-        int base;
     } region_str = {
         .up    = NULL,
         .down  = NULL,
         .left  = NULL,
-        .right = NULL,
-        .base  = 10
+        .right = NULL
     };
 
+    int base_tmp;
     int ch;
     while ((ch = getopt(argc, argv, "+i:o:u:d:l:r:z:b:h")) != -1) {
         switch (ch) {
@@ -71,10 +76,12 @@ int main(int argc, char *argv[]) {
                 scale = strtol(optarg, NULL, 10);
                 break;
             case 'b':
-                region_str.base = strtol(optarg, NULL, 10);
-                if (0 >= region_str.base || region_str.base > 36)
-                    errx(1, "base of %d outwith range of 1 <= b <= 36\n",
-                            region_str.base);
+                base_tmp = strtol(optarg, NULL, 0);
+                if (2 > base_tmp || base_tmp > 36) {
+                    errx(1, "base of %d outwith range of 2 <= b <= 36\n",
+                            opts.filename_value_base);
+                }
+                opts.filename_value_base = (int) base_tmp;
                 break;
             case 'h':
                 usage(argv[0]);
@@ -100,12 +107,12 @@ int main(int argc, char *argv[]) {
         errx(1, "Missing dimension parameter; use '%s -h' for help\n", argv[0]);
 
     struct region des = {
-        .up    = strtol(region_str.up,    NULL, region_str.base),
-        .down  = strtol(region_str.down,  NULL, region_str.base),
-        .left  = strtol(region_str.left,  NULL, region_str.base),
-        .right = strtol(region_str.right, NULL, region_str.base),
+        .up    = strtol(region_str.up,    NULL, opts.filename_value_base),
+        .down  = strtol(region_str.down,  NULL, opts.filename_value_base),
+        .left  = strtol(region_str.left,  NULL, opts.filename_value_base),
+        .right = strtol(region_str.right, NULL, opts.filename_value_base),
         .scale = scale
     };
 
-    stitch_region(&des, tile_dirname);
+    stitch_region(&des, tile_dirname, &opts);
 }

@@ -18,8 +18,11 @@
 #include <vips/vips.h>
 // For errx:
 #include <err.h>
+// For assert:
+#include <assert.h>
 
 #include "region.h"
+#include "main.h"
 #include "debug.h"
 #include "llist.h"
 
@@ -28,18 +31,19 @@ struct tile {
     char          filename[256];
 };
 
-bool tile_comparator(struct tile *a, struct tile *b) {
+static bool tile_comparator(struct tile *a, struct tile *b) {
     return !(a->region.up > b->region.up
             || (a->region.up == b->region.up
                 && a->region.left > b->region.left));
 }
 
-bool tile_ll_comparator(void *a, void *b) {
+static bool tile_ll_comparator(void *a, void *b) {
     return tile_comparator((void *)a, (void *)b);
 }
 
 void debug_region(const struct region *region) {
-    debug("u%d, d%d, l%d, r%d, z%d\n", region->up, region->down, region->left, region->right, region->scale);
+    debug("u%d, d%d, l%d, r%d, z%d\n", region->up, region->down,
+            region->left, region->right, region->scale);
 }
 
 /*
@@ -91,27 +95,59 @@ struct region *move_relative(struct region *root, struct region *x) {
     return x;
 }
 
-int get_region(struct dirent *ent, struct region *buf) {
-#   define get_region_side(u, d, r, s) do { \
-        char *filename = ent->d_name; \
-        char *pos_str = strstr(filename, s "p"); \
-        if (!pos_str) return 1; \
-        pos_str += strlen(s "p"); \
-        char *siz_str; \
-        long pos = strtol(pos_str, &siz_str, 10); \
-        if (siz_str[0] != 's') return 1; \
-        char *rat_str; \
-        long siz = strtol(++siz_str, &rat_str, 10); \
-        long rat; \
-        if (rat_str[0] != 'r') rat = 1; \
-        else rat = strtol(++rat_str, NULL, 10); \
-        u = pos; \
-        d = pos + siz; \
-        r = rat; \
-    } while (0)
-    get_region_side(buf->up,   buf->down,  buf->scale, "Y");
-    get_region_side(buf->left, buf->right, buf->scale, "X");
-#   undef get_region_side
+czi_coord_t str_czi_coord(char* str, char **end, int base) {
+    int errno_tmp = errno;
+    errno = 0;
+    czi_coord_t ret = strtol(str, end, base);
+    if (errno) {
+        err(errno, NULL);
+    }
+    errno = errno_tmp;
+    return ret;
+}
+
+int set_side(struct dirent *ent, char *id, struct options *opts,
+        czi_coord_t *left, czi_coord_t *right, int *scale) {
+    char *filename = ent->d_name;
+    int base = opts->filename_value_base;
+
+    /*
+     * The following lines find the dimension, then the dimension's values. A
+     * problem could occur if a value hasn't been speicified for a dimension,
+     * in which case this would find the value of a different dimension.
+     *
+     * While the ordering of values in a filename has been agreed, this has
+     * been written to work with values in any order, just in case.
+     */
+#   define place(str, x) (strstr((str), (x)) + strlen((x)))
+    char *dim_start = place(filename,id);
+
+    char *left_start = place(dim_start, "p");
+    *left = str_czi_coord(left_start, NULL, base);
+
+    if (right) {
+        char *size_start = place(dim_start, "s");
+        *right = *left + str_czi_coord(size_start, NULL, base);
+    }
+
+    if (scale) {
+        char *scale_start = place(dim_start, "r");
+        czi_coord_t scale_tmp = str_czi_coord(scale_start, NULL, base);
+        assert(scale_tmp <= INT_MAX);
+        *scale = (int) scale_tmp;
+    }
+
+    return 0;
+#   undef place
+}
+
+int get_region(struct dirent *ent, struct region *buf, struct options *opts) {
+    set_side(ent, "X", opts, &(buf->left), &(buf->right), &(buf->scale));
+
+    int scale_tmp;
+    set_side(ent, "Y", opts, &(buf->up),   &(buf->down),  &scale_tmp);
+    assert(buf->scale == scale_tmp);
+
     return 0;
 }
 
@@ -123,17 +159,18 @@ void print_tiles(llist *list) {
     debug("%s\n", "--");
 }
 
-llist *find_relevant_tiles(
-        struct region *desired, char *tile_dirname) {
+llist *find_relevant_tiles(struct region *desired, char *tile_dirname,
+        struct options *opts) {
     llist *included_tiles = NULL;
     DIR *dir = opendir(tile_dirname);
     if (!dir) {
         err(errno, "%s", tile_dirname);
     }
+
     struct dirent *ent;
     while ((ent = readdir(dir))) {
         struct region tile_region;
-        if (!get_region(ent, &tile_region)) continue;
+        if (!get_region(ent, &tile_region, opts)) continue;
         if (tile_region.scale != desired->scale) continue;
         if (overlaps(&tile_region, desired)) {
             struct tile *tile = (struct tile *) malloc(sizeof (*tile));
@@ -182,14 +219,14 @@ int tiles_across(llist *tiles) {
     if (!tiles) return 0;
     uint32_t first_y = ((struct tile *) tiles->content)->region.up;
     int i = 1;
-    debug("%d\n", first_y);
-    for (struct ll_node *node = tiles->next; node && (((struct tile *) node->content)->region.up == first_y); node = node->next) {
+    for (struct ll_node *node = tiles->next; node && (((struct tile *)
+                    node->content)->region.up == first_y); node = node->next) {
         ++i;
     }
     return i;
 }
 
-bool print_filename(void *tile, void *data) {
+static bool print_filename(void *tile, void *data) {
     debug("%s\n", ((struct tile *) tile)->filename);
     return true;
 }
@@ -198,19 +235,22 @@ void debug_llist(llist *list) {
     ll_foreach(list, &print_filename, NULL);
 }
 
-void stitch_region(struct region *desired, char *tile_dirname) {
+void stitch_region(struct region *desired, char *tile_dirname,
+        struct options *opts) {
     debug_region(desired);
-    llist *included_tiles = find_relevant_tiles(desired, tile_dirname);
+    llist *included_tiles = find_relevant_tiles(desired, tile_dirname, opts);
     VipsImage **vips_in = get_tile_data(included_tiles, tile_dirname);
     VipsImage *vips_mid;
     int ntiles = ll_length(included_tiles);
 
-    if (ntiles == 0)
+    if (ntiles == 0) {
         errx(1, "no tiles found for specified region");
+    }
 
-    if (vips_arrayjoin(vips_in, &vips_mid,
-            ntiles, "across", tiles_across(included_tiles), NULL))
+    if (vips_arrayjoin(vips_in, &vips_mid, ntiles, "across",
+                tiles_across(included_tiles), NULL)) {
         vips_error_exit(NULL);
+    }
 
     VipsImage *vips_out;
 
