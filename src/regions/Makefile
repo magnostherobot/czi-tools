@@ -18,7 +18,7 @@ default: all
 
 all: $(TARGET)
 
-$(TARGET): main.o region.o llist.o
+$(TARGET): main.o region.o llist.o name.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.c
@@ -29,7 +29,10 @@ $(TARGET): main.o region.o llist.o
 test: $(TESTS)
 	for t in $^ ; do echo "$$t:" ; "./$$t" ; done
 
-region.test: region.test.o region.o llist.o
+name.test: name.test.o name.o llist.o region.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+region.test: region.test.o region.o llist.o name.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 clean:
