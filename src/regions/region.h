@@ -13,7 +13,7 @@ bool overlaps(struct region *a, struct region *b);
 
 struct region *move_relative(struct region *root, struct region *x);
 
-void stitch_region(struct region *desired, char *tile_dirname,
+void stitch_region(struct region *desired, char *tile_dirname, char *out_name,
     struct options *opts);
 
 int offset(struct region *region, czi_coord_t off_x, czi_coord_t off_y);

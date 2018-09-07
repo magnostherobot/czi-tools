@@ -64,24 +64,31 @@ int main(int argc, char *argv[]) {
             case 'i':
                 tile_dirname = optarg;
                 break;
+
             case 'o':
                 output_name = optarg;
                 break;
+
             case 'u':
                 region_str.up = optarg;
                 break;
+
             case 'd':
                 region_str.down = optarg;
                 break;
+
             case 'l':
                 region_str.left = optarg;
                 break;
+
             case 'r':
                 region_str.right = optarg;
                 break;
+
             case 'z':
                 scale = strtol(optarg, NULL, 10);
                 break;
+
             case 'b':
                 base_tmp = strtol(optarg, NULL, 0);
                 if (2 > base_tmp || base_tmp > 36) {
@@ -90,18 +97,23 @@ int main(int argc, char *argv[]) {
                 }
                 opts.filename_value_base = (int) base_tmp;
                 break;
+
             case 'h':
                 usage(argv[0]);
                 break;
+
             case '0':
                 coords_from_zero = true;
                 break;
+
             case 'x':
                 opts.x_offset += strtol(optarg, NULL, 0);
                 break;
+
             case 'y':
                 opts.y_offset += strtol(optarg, NULL, 0);
                 break;
+
             default:
                 errx(1, "unknown option '%c'; use '%s -h' for help\n",
                         ch, argv[0]);
@@ -142,5 +154,5 @@ int main(int argc, char *argv[]) {
     if (offset(&des, opts.x_offset, opts.y_offset))
         errx(1, "unable to use offset");
 
-    stitch_region(&des, tile_dirname, &opts);
+    stitch_region(&des, tile_dirname, output_name, &opts);
 }

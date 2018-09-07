@@ -230,9 +230,8 @@ int stitch_tiles(VipsImage **in, VipsImage **out, int tile_count, int across) {
 #   undef safe_join
 }
 
-void stitch_region(struct region *desired, char *tile_dirname,
+void stitch_region(struct region *desired, char *tile_dirname, char *out_name,
         struct options *opts) {
-    debug_region(desired);
     llist *included_tiles = find_relevant_tiles(desired, tile_dirname, opts);
     VipsImage **vips_in = get_tile_data(included_tiles, tile_dirname);
     VipsImage *vips_mid;
@@ -251,15 +250,12 @@ void stitch_region(struct region *desired, char *tile_dirname,
 
     // Following line mutates desired:
     move_relative(&(((struct tile *) (included_tiles->content))->region), desired);
-    debug_region(desired);
-    debug_llist(included_tiles);
 
     if (vips_crop(vips_mid, &vips_out, desired->left, desired->up,
                 desired->right - desired->left, desired->down - desired->up,
                 NULL))
         vips_error_exit(NULL);
 
-    if (vips_image_write_to_file(vips_out, "./out.png", NULL))
+    if (vips_image_write_to_file(vips_out, out_name, NULL))
         vips_error_exit(NULL);
-    debug("%s\n", "success?");
 }
