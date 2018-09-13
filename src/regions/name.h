@@ -12,7 +12,10 @@ int set_side(struct dirent *ent, char *id, struct options *opts,
 llist *find_relevant_tiles(struct region *desired, char *tile_dirname,
     struct options *opts);
 
-int calculate_offset(char *tile_dirname, czi_coord_t *x, czi_coord_t *y,
-    struct options *opts);
+int find_smallest(char *tile_dirname, czi_coord_t *x, czi_coord_t *y,
+    char **filename, struct options *opts);
+
+int region_filename(const struct region *region, char *buffer,
+    const struct options *opts);
 
 #endif /* _NAME_H */

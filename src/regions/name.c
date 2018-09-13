@@ -84,8 +84,8 @@ int get_region(struct dirent *ent, struct region *buf, struct options *opts) {
     return 0;
 }
 
-int calculate_offset(char *tile_dirname, czi_coord_t *x, czi_coord_t *y,
-        struct options *opts) {
+int find_smallest(char *tile_dirname, czi_coord_t *x, czi_coord_t *y,
+        char **filename, struct options *opts) {
     DIR *dir = opendir(tile_dirname);
     if (!dir) err(errno, "%s", tile_dirname);
 
@@ -94,6 +94,9 @@ int calculate_offset(char *tile_dirname, czi_coord_t *x, czi_coord_t *y,
 
     bool first_pass = true;
 
+    czi_coord_t min_x = 0;
+    czi_coord_t min_y = 0;
+    char *min_fn = NULL;
     while ((ent = readdir(dir))) {
         czi_coord_t tmp_x, tmp_y;
 
@@ -101,14 +104,27 @@ int calculate_offset(char *tile_dirname, czi_coord_t *x, czi_coord_t *y,
         if (set_side(ent, "Y", opts, &tmp_y, NULL, NULL)) continue;
 
         if (first_pass) {
-            *x = tmp_x;
-            *y = tmp_y;
+            min_x = tmp_x;
+            min_y = tmp_y;
+            min_fn = ent->d_name;
             first_pass = false;
         } else {
-            *x = min(*x, tmp_x);
-            *y = min(*y, tmp_y);
+            if (min_x > tmp_x) {
+                min_x = tmp_x;
+                min_fn = ent->d_name;
+            }
+            if (min_y > tmp_y) {
+                min_y = tmp_y;
+                min_fn = ent->d_name;
+            }
         }
     }
+
+    if (!min_fn) return 2;
+
+    if (x) *x = min_x;
+    if (y) *y = min_y;
+    if (filename) *filename = min_fn;
 
     return 0;
 }
@@ -139,7 +155,7 @@ llist *find_relevant_tiles(struct region *desired, char *tile_dirname,
         if (overlaps(&tile_region, desired)) {
             struct tile *tile = (struct tile *) malloc(sizeof (*tile));
             tile->region = tile_region;
-            strncpy(tile->filename, ent->d_name, strlen(ent->d_name)+1);
+            strncpy(tile->filename, ent->d_name, TILE_FILENAME_MAX_SIZE);
             included_tiles = ll_add_item(included_tiles, tile, &tile_ll_comparator);
         }
     }

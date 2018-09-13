@@ -40,6 +40,9 @@ int main(int argc, char *argv[]) {
     char *output_name = NULL;
     int scale = 1;
 
+    czi_coord_t x_off = 0;
+    czi_coord_t y_off = 0;
+
     struct options opts = {
         .filename_value_base = 10
     };
@@ -107,11 +110,11 @@ int main(int argc, char *argv[]) {
                 break;
 
             case 'x':
-                opts.x_offset += strtol(optarg, NULL, 0);
+                x_off += strtol(optarg, NULL, 0);
                 break;
 
             case 'y':
-                opts.y_offset += strtol(optarg, NULL, 0);
+                y_off += strtol(optarg, NULL, 0);
                 break;
 
             default:
@@ -136,11 +139,11 @@ int main(int argc, char *argv[]) {
 
     if (coords_from_zero) {
         czi_coord_t off_x, off_y;
-        if (calculate_offset(tile_dirname, &off_x, &off_y, &opts))
+        if (find_smallest(tile_dirname, &off_x, &off_y, NULL, &opts))
             errx(errno, "Error when calculating offsets");
         debug("Calculated offset is " CZI_T ", " CZI_T "\n", off_x, off_y);
-        opts.x_offset += off_x;
-        opts.y_offset += off_y;
+        x_off += off_x;
+        y_off += off_y;
     }
 
     struct region des = {
@@ -151,7 +154,7 @@ int main(int argc, char *argv[]) {
         .scale = scale
     };
 
-    if (offset(&des, opts.x_offset, opts.y_offset))
+    if (offset(&des, x_off, y_off))
         errx(1, "unable to use offset");
 
     stitch_region(&des, tile_dirname, output_name, &opts);

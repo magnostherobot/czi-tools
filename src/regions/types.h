@@ -15,16 +15,15 @@ struct region {
     int         scale;
 };
 
+#define TILE_FILENAME_MAX_SIZE 1024
+
 struct tile {
     struct region region;
-    char          filename[256];
+    char          filename[TILE_FILENAME_MAX_SIZE];
 };
 
 struct options {
     int filename_value_base;
-
-    czi_coord_t x_offset;
-    czi_coord_t y_offset;
 };
 
 #endif /* _TYPES_H */

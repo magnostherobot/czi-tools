@@ -251,9 +251,11 @@ void stitch_region(struct region *desired, char *tile_dirname, char *out_name,
     // Following line mutates desired:
     move_relative(&(((struct tile *) (included_tiles->content))->region), desired);
 
+    czi_coord_t width = desired->right - desired->left;
+    czi_coord_t height = desired->down - desired->up;
+
     if (vips_crop(vips_mid, &vips_out, desired->left, desired->up,
-                desired->right - desired->left, desired->down - desired->up,
-                NULL))
+                width, height, NULL))
         vips_error_exit(NULL);
 
     if (vips_image_write_to_file(vips_out, out_name, NULL))
