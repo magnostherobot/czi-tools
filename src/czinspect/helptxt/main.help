@@ -1,4 +1,4 @@
-OBUsage: czinspect [operation] <file>
+Usage: czinspect [operation] <file>
 
 Operations:
     -D          Dump all metadata from the input file
