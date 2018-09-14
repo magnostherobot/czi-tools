@@ -18,28 +18,27 @@
 #include <vips/vips.h>
 // For errx:
 #include <err.h>
+// For assert:
+#include <assert.h>
 
 #include "region.h"
 #include "debug.h"
 #include "llist.h"
+#include "types.h"
+#include "name.h"
 
-struct tile {
-    struct region region;
-    char          filename[256];
-};
+int offset(struct region *reg, czi_coord_t x, czi_coord_t y) {
+    reg->up    += y;
+    reg->down  += y;
+    reg->left  += x;
+    reg->right += x;
 
-bool tile_comparator(struct tile *a, struct tile *b) {
-    return !(a->region.up > b->region.up
-            || (a->region.up == b->region.up
-                && a->region.left > b->region.left));
-}
-
-bool tile_ll_comparator(void *a, void *b) {
-    return tile_comparator((void *)a, (void *)b);
+    return 0;
 }
 
 void debug_region(const struct region *region) {
-    debug("u%d, d%d, l%d, r%d, z%d\n", region->up, region->down, region->left, region->right, region->scale);
+    debug("u%d, d%d, l%d, r%d, z%d\n", region->up, region->down,
+            region->left, region->right, region->scale);
 }
 
 /*
@@ -91,30 +90,6 @@ struct region *move_relative(struct region *root, struct region *x) {
     return x;
 }
 
-int get_region(struct dirent *ent, struct region *buf) {
-#   define get_region_side(u, d, r, s) do { \
-        char *filename = ent->d_name; \
-        char *pos_str = strstr(filename, s "p"); \
-        if (!pos_str) return 1; \
-        pos_str += strlen(s "p"); \
-        char *siz_str; \
-        long pos = strtol(pos_str, &siz_str, 10); \
-        if (siz_str[0] != 's') return 1; \
-        char *rat_str; \
-        long siz = strtol(++siz_str, &rat_str, 10); \
-        long rat; \
-        if (rat_str[0] != 'r') rat = 1; \
-        else rat = strtol(++rat_str, NULL, 10); \
-        u = pos; \
-        d = pos + siz; \
-        r = rat; \
-    } while (0)
-    get_region_side(buf->up,   buf->down,  buf->scale, "Y");
-    get_region_side(buf->left, buf->right, buf->scale, "X");
-#   undef get_region_side
-    return 0;
-}
-
 void print_tiles(llist *list) {
     debug("%s\n", "--");
     for (struct ll_node *node = list; node; node = node->next) {
@@ -122,30 +97,6 @@ void print_tiles(llist *list) {
     }
     debug("%s\n", "--");
 }
-
-llist *find_relevant_tiles(
-        struct region *desired, char *tile_dirname) {
-    llist *included_tiles = NULL;
-    DIR *dir = opendir(tile_dirname);
-    if (!dir) {
-        err(errno, "%s", tile_dirname);
-    }
-    struct dirent *ent;
-    while ((ent = readdir(dir))) {
-        struct region tile_region;
-        if (!get_region(ent, &tile_region)) continue;
-        if (tile_region.scale != desired->scale) continue;
-        if (overlaps(&tile_region, desired)) {
-            struct tile *tile = (struct tile *) malloc(sizeof (*tile));
-            tile->region = tile_region;
-            strncpy(tile->filename, ent->d_name, strlen(ent->d_name)+1);
-            included_tiles = ll_add_item(included_tiles, tile, &tile_ll_comparator);
-        }
-    }
-    return included_tiles;
-}
-
-#define safe_vips(...) if (!(__VA_ARGS__)) vips_error_exit(NULL)
 
 struct filenamedata {
     char       *start;
@@ -182,14 +133,14 @@ int tiles_across(llist *tiles) {
     if (!tiles) return 0;
     uint32_t first_y = ((struct tile *) tiles->content)->region.up;
     int i = 1;
-    debug("%d\n", first_y);
-    for (struct ll_node *node = tiles->next; node && (((struct tile *) node->content)->region.up == first_y); node = node->next) {
+    for (struct ll_node *node = tiles->next; node && (((struct tile *)
+                    node->content)->region.up == first_y); node = node->next) {
         ++i;
     }
     return i;
 }
 
-bool print_filename(void *tile, void *data) {
+static bool print_filename(void *tile, void *data) {
     debug("%s\n", ((struct tile *) tile)->filename);
     return true;
 }
@@ -198,34 +149,115 @@ void debug_llist(llist *list) {
     ll_foreach(list, &print_filename, NULL);
 }
 
-void stitch_region(struct region *desired, char *tile_dirname) {
-    debug_region(desired);
-    llist *included_tiles = find_relevant_tiles(desired, tile_dirname);
+int stitch_tiles(VipsImage **in, VipsImage **out, int tile_count, int across) {
+#   define safe_call(func) do { if (func) { return -1; } } while (0)
+#   define safe_arrayjoin(in, out, n, ...) \
+        safe_call(vips_arrayjoin(in, out, n, __VA_ARGS__))
+#   define safe_join(a, b, out, dir, ...) \
+        safe_call(vips_join(a, b, out, dir, __VA_ARGS__))
+
+    assert(tile_count % across == 0);
+
+    if (tile_count == 1) {
+        // There's only one tile: no need to stitch anything
+        *out = in[0];
+        return 0;
+    } else if (tile_count == across) {
+        // All the tiles are in one row
+        VipsImage *left, *right;
+
+        safe_arrayjoin(in, &left, tile_count - 1, NULL);
+        right = in[tile_count - 1];
+        safe_join(left, right, out, VIPS_DIRECTION_HORIZONTAL, "expand", true,
+                NULL);
+        return 0;
+    } else if (across == 1) {
+        // All the tiles are in one column
+        VipsImage *top, *bottom;
+
+        safe_arrayjoin(in, &top, tile_count - 1, "across", across, NULL);
+        bottom = in[tile_count - 1];
+        safe_join(top, bottom, out, VIPS_DIRECTION_VERTICAL, "expand", true,
+                NULL);
+        return 0;
+    }
+
+    // All but the last tile on a row, and the entire last row, are
+    // array-joined:
+    int basic_tile_count = tile_count - across - (tile_count / across) + 1;
+    VipsImage *basic_tiles_in[basic_tile_count];
+    VipsImage *basic_tiles_out;
+    for (int i = 0; i < basic_tile_count; ++i) {
+        basic_tiles_in[i] = in[i + ((i + 1) / across)];
+    }
+    safe_arrayjoin(basic_tiles_in, &basic_tiles_out, basic_tile_count,
+            "across", across - 1, NULL);
+
+    // Array-join the bottom row (except the bottom-right corner):
+    int bottom_row_count = across - 1;
+    VipsImage **bottom_row_in = in + tile_count - across;
+    VipsImage *bottom_row_out;
+    safe_arrayjoin(bottom_row_in, &bottom_row_out, bottom_row_count, NULL);
+
+    // Array-join the rightmost column (except the bottom-right corner):
+    int right_col_count = tile_count / across - 1;
+    VipsImage *right_col_in[right_col_count];
+    VipsImage *right_col_out;
+    for (int i = 1; i <= right_col_count; ++i) {
+        right_col_in[i - 1] = in[i * across - 1];
+    }
+    safe_arrayjoin(right_col_in, &right_col_out, right_col_count, "across", 1,
+            NULL);
+
+    // Merge the main tiles and the bottom row:
+    VipsImage *left;
+    safe_join(basic_tiles_out, bottom_row_out, &left, VIPS_DIRECTION_VERTICAL,
+            "expand", true, NULL);
+
+    // Merge the rightmost column and bottom-right corner tile:
+    VipsImage *right;
+    safe_join(right_col_out, in[tile_count - 1], &right,
+            VIPS_DIRECTION_VERTICAL, "expand", true, NULL);
+
+    // Altogether now:
+    safe_join(left, right, out, VIPS_DIRECTION_HORIZONTAL, "expand", true,
+            NULL);
+
+    return 0;
+
+#   undef safe_call
+#   undef safe_arrayjoin
+#   undef safe_join
+}
+
+void stitch_region(struct region *desired, char *tile_dirname, char *out_name,
+        struct options *opts) {
+    llist *included_tiles = find_relevant_tiles(desired, tile_dirname, opts);
     VipsImage **vips_in = get_tile_data(included_tiles, tile_dirname);
     VipsImage *vips_mid;
     int ntiles = ll_length(included_tiles);
 
-    if (ntiles == 0)
+    if (ntiles == 0) {
         errx(1, "no tiles found for specified region");
+    }
 
-    if (vips_arrayjoin(vips_in, &vips_mid,
-            ntiles, "across", tiles_across(included_tiles), NULL))
+    int across = tiles_across(included_tiles);
+    if (stitch_tiles(vips_in, &vips_mid, ntiles, across)) {
         vips_error_exit(NULL);
+    }
 
     VipsImage *vips_out;
 
     // Following line mutates desired:
     move_relative(&(((struct tile *) (included_tiles->content))->region), desired);
-    debug_region(desired);
-    debug_llist(included_tiles);
 
+    czi_coord_t width = desired->right - desired->left;
+    czi_coord_t height = desired->down - desired->up;
 
     if (vips_crop(vips_mid, &vips_out, desired->left, desired->up,
-                desired->right - desired->left, desired->down - desired->up,
-                NULL))
+                width, height, NULL))
         vips_error_exit(NULL);
 
-    if (vips_image_write_to_file(vips_out, "./out.png", NULL))
+    if (vips_image_write_to_file(vips_out, out_name, NULL))
         vips_error_exit(NULL);
-    debug("%s\n", "success?");
 }

@@ -93,17 +93,20 @@ matrix:
       env:
         - MATRIX_EVAL="CC=clang-4.0"
 
-    - os: linux
-      dist: xenial
-      sudo: required
-      addons:
-        apt:
-          sources:
-            - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main'
-          packages:
-            - clang-5.0
-      env:
-        - MATRIX_EVAL="CC=clang-5.0"
+## Non-functioning job: see
+## https://github.com/magnostherobot/czi-tools/pull/17#issuecomment-418164822
+#
+#     - os: linux
+#       dist: xenial
+#       sudo: required
+#       addons:
+#         apt:
+#           sources:
+#             - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main'
+#           packages:
+#             - clang-5.0
+#       env:
+#         - MATRIX_EVAL="CC=clang-5.0"
 
 before_install:
   - export MAKEFLAGS="-j$(nproc)"

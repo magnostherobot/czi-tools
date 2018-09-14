@@ -4,6 +4,10 @@
 #include "minunit.h"
 #include "region.h"
 
+int tests_run = 0;
+
+/* Utility functions */
+
 #define assign_region(x, u, d, l, r, s) do { \
     x.up    = u; \
     x.down  = d; \
@@ -12,8 +16,6 @@
     x.scale = s; \
 } while (0)
 
-int tests_run = 0;
-
 bool region_cmp(struct region *real, struct region *exp) {
     return real->up    == exp->up
         && real->down  == exp->down
@@ -21,6 +23,8 @@ bool region_cmp(struct region *real, struct region *exp) {
         && real->right == exp->right
         && real->scale == exp->scale;
 }
+
+/* Tests for utility functions */
 
 test region_cmp_equality() {
     struct region a, b;
@@ -31,6 +35,8 @@ test region_cmp_equality() {
     mu_assert("region_cmp inaccurate", region_cmp(&a, &b));
     return 0;
 }
+
+/* intersection */
 
 test intersection_a_in_b() {
     struct region a, b, real, exp, *ret_ptr;
@@ -96,6 +102,41 @@ test intersection_no_overlap() {
     return 0;
 }
 
+/* overlaps */
+
+test overlaps_partial() {
+    struct region a, b;
+
+    assign_region(a, 0, 10, 0, 10, 1);
+    assign_region(b, 5, 15, 5, 15, 1);
+
+    mu_assert("no overlap found", overlaps(&a, &b));
+
+    return 0;
+}
+
+test overlaps_not() {
+    struct region a, b;
+
+    assign_region(a,  0, 10,  0, 10, 1);
+    assign_region(b, 20, 30, 20, 30, 1);
+
+    mu_assert("overlap found", !overlaps(&a, &b));
+
+    return 0;
+}
+
+test overlaps_edge() {
+    struct region a, b;
+
+    assign_region(a,  0, 10,  0, 10, 1);
+    assign_region(b, 10, 20, 10, 20, 1);
+
+    mu_assert("adjacent tiles count as overlapping", !overlaps(&a, &b));
+
+    return 0;
+}
+
 test run_tests() {
     mu_run_test(region_cmp_equality);
 
@@ -103,6 +144,10 @@ test run_tests() {
     mu_run_test(intersection_b_in_a);
     mu_run_test(intersection_partial_overlap);
     mu_run_test(intersection_no_overlap);
+
+    mu_run_test(overlaps_partial);
+    mu_run_test(overlaps_not);
+    mu_run_test(overlaps_edge);
 
     return 0;
 }
