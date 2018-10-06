@@ -8,9 +8,7 @@ LIBS ?=
 CCSRC = $(wildcard src/*.c)
 CCOBJ = ${CCSRC:.c=.o}
 HEADERS = $(wildcard src/*.h) src/compat/compat.h
-HELPSRC = $(wildcard helptxt/*.help)
-HELPOBJ = ${HELPSRC:.help=.ho}
-OBJECTS = $(CCOBJ) $(HELPOBJ)
+OBJECTS = $(CCOBJ)
 
 CFLAGS += -std=c99 -Wall -Werror
 
@@ -37,9 +35,6 @@ $(GENDIR) $(TOOLOUT):
 
 $(GENHEADERS): $(GENDIR) $(TOOLOUT)
 
-%.ho: %.help
-	$(LD) -r -b binary -o $@ $^
-
 %.o: %.c
 	$(CC) -c -o $@ $^ -I $(GENDIR) $(CFLAGS)
 
@@ -50,7 +45,9 @@ clean:
 helptxt.h:
 	echo '#ifndef _HELPTXT_H' >> $(GENDIR)/$@
 	echo '#define _HELPTXT_H' >> $(GENDIR)/$@
-	ls helptxt | tr '.' '_' | awk -f $(TOOLDIR)/genhelp-h.awk >> $(GENDIR)/$@
+	for i in helptxt/*; do \
+		xxd -i $$i >> $(GENDIR)/$@ ; \
+	done
 	echo '#endif /* _HELPTXT_H */' >> $(GENDIR)/$@
 
 config.h: configtest

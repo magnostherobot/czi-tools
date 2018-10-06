@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -52,57 +53,48 @@
 
 static struct config cfg;
 
-/* print usage information out of embedded help text object file */
+/* print usage information */
 void usage() {
-    char *start, *end;
-    size_t len;
-    ssize_t rv;
+    unsigned char *start;
+    unsigned int len;
 
-#define START(x) _binary_helptxt_ ## x ## _help_start;
-#define END(x) _binary_helptxt_ ## x ## _help_end;
+#define START(x) helptxt_ ## x ## _help
+#define LEN(x) helptxt_ ## x ## _help_len
     
     switch (cfg.operation) {
     case OP_NONE:
         start = START(main);
-        end = END(main);
+        len = LEN(main);
         break;
     case OP_SCAN:
         start = START(scan);
-        end = END(scan);
+        len = LEN(scan);
         break;
     case OP_EXTRACT:
         start = START(extract);
-        end = END(extract);
+        len = LEN(extract);
         break;
     case OP_DUMP:
         start = START(dump);
-        end = END(dump);
+        len = LEN(dump);
         break;
     case OP_CHECK:
         start = START(check);
-        end = END(check);
+        len = LEN(check);
         break;
     default:
         ferrx1("error printing help text: unknown operation");
         break;
     }
 
-    len = end - start;
-    while ((rv = write(STDOUT_FILENO, start, len)) != 0) {
-        if (rv == -1) {
-            if (errno == EINTR || errno == EAGAIN)
-                continue;
-            ferr1("error printing help text");
-        }
-
-        start += rv;
-        len -= rv;
+    for (unsigned int i = 0; i < len; i++) {
+        putchar(start[i]);
     }
-
+    
     exit(0);
-
+    
 #undef START
-#undef END
+#undef LEN
 }
 
 /* parse operations (denoted by a capital latin letter) */
