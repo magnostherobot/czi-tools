@@ -154,6 +154,7 @@ before_install:
 install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew unlink python
       brew install vips --with-imagemagick --without-graphicsmagick --with-openexr --with-openslide
     else
       sudo apt-get install -y libvips-dev uuid-dev
