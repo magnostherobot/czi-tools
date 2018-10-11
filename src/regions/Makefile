@@ -23,8 +23,6 @@ $(TARGET): main.o region.o llist.o name.o
 
 %.o: %.c
 	$(CC) -MMD -c $(CFLAGS) -o $@ $<
-	sed -i'.bak' 's,\($*\.o\)[ :]*\(.*\),$@:$$\(wildcard \2\),g' $*.d
-	$(RM) $*.d.bak
 
 test: $(TESTS)
 	for t in $^ ; do echo "$$t:" ; "./$$t" ; done
