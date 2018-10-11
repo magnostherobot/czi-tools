@@ -21,10 +21,11 @@
             return -1;                                              \
     } while (0)
 
-#ifdef IS_BIG_ENDIAN
-# define SW32(v)  data->v = sw32(data->v)
-# define SW64(v)  data->v = sw64(data->v)
-# define SWF(f)   data->f = swf(data->f)
+#if defined(__BYTE_ORDER__)
+#  if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#    define SW32(v)  data->v = sw32(data->v)
+#    define SW64(v)  data->v = sw64(data->v)
+#    define SWF(f)   data->f = swf(data->f)
 
 static uint32_t sw32(uint32_t v) {
     return ((v & 0xff) << 24) | (((v >> 8) & 0xff) << 16) | (((v >> 16) & 0xff) << 8) | ((v >> 24) & 0xff);
@@ -48,10 +49,15 @@ static float swf(float f) {
     return ret;
 }
 
+#  elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#    define SW32(v)
+#    define SW64(v)
+#    define SWF(v)
+#  else
+#    error "Your compiler does not expose a __BYTE_ORDER__ macro with a recognised value"
+#  endif
 #else
-# define SW32(v)
-# define SW64(v)
-# define SWF(v)
+#error "Please upgrade to a compiler which exposes the __BYTE_ORDER__ macro"
 #endif
 
 /* read in a segment header */

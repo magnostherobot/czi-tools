@@ -7,30 +7,21 @@
 /* simple config test program */
 
 /* 
- * this program tests machine byte order and pointer size. we also test if we're
- * compiling on Darwin, as slightly different macros are required to expose recent
- * POSIX functions.
+ * this program tests machine pointer size. we also test if we're compiling on
+ * Darwin, as slightly different macros are required to expose recent POSIX
+ * functions. endianness used to be detected by this program, but there are
+ * standard macros exposed by gcc and clang which can be used to detect
+ * appropriate endianness.
  */
 
 
 int main() {
-    uint32_t u32 = 0x44332211;
-    uint32_t *u32ptr = &u32;
-    unsigned char *cptr = (unsigned char *) u32ptr;
-
     printf("#ifndef _CONFIG_H\n");
     printf("#define _CONFIG_H\n");
 
     /* test address space size */
     if (sizeof(uintptr_t) <= sizeof(uint32_t)) {
         printf("#define SLIDING_MMAP\n");
-    }
-
-    /* test endianness */
-    if (*cptr == 0x44) {
-        printf("#define IS_BIG_ENDIAN\n");
-    } else if (*cptr != 0x11) { /* detect weirdness */
-        errx(1, "could not determine machine endianness");
     }
 
 #if defined(__APPLE__)
