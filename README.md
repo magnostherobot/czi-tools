@@ -8,50 +8,61 @@ data from already-existing `.czi`s.
 
 ## Requirements
 
+These tools require a modern Unix-like system to run. We have limited resources
+for conducting testing on different platforms, so the list of platform-specific
+instructions below is *very* incomplete.
+
 ### `vips`
 
-These tools require [vips](https://github.com/jcupitt/libvips) version 8 or
-greater.
+The region stitching tools require [vips](https://github.com/jcupitt/libvips)
+version 8 or greater.
 
-#### Ubuntu
+#### Ubuntu/Debian
 
-Xenial Ubuntu and onward can install vips using `apt-get`:
+Users of Ubuntu Xenial and later and users of Debian can install vips running
+the following command as root:
 ```bash
-sudo apt-get install libvips-dev
+apt-get install libvips-dev
 ```
-Older versions may be able to
-[build from source](https://github.com/jcupitt/libvips/wiki/Build-for-Ubuntu#building-from-source).
 
-#### MacOS
+Older versions of Ubuntu require building recent vips from source, instructions
+for which can be found
+[here](https://github.com/jcupitt/libvips/wiki/Build-for-Ubuntu#building-from-source).
 
-Mac users can install `vips` via [`brew`](https://brew.sh/):
-```bash
+#### Fedora
+
+Users of Fedora should run the following command as root:
+```
+dnf install vips vips-devel
+```
+
+#### macOS
+
+Vips can be installed on macOS using [Homebrew](https://brew.sh):
+```
 brew install vips --with-imagemagick --without-graphicsmagick --with-openexr --with-openslide
 ```
 
-#### Fedora
-```bash
-sudo dnf install vips vips-devel
-```
+#### Other operating systems
 
-#### Debian
-```bash
-sudo apt-get install libvips-dev
-```
-
-### `libuuid` Development Headers
-
-The `libuuid` development headers are also required for building.
-These can usually be installed using your system package manager, or can be
-[built from source](https://github.com/karelzak/util-linux/tree/master/libuuid).
+Other operating systems may provide packages for vips, however building from
+source will be required if no packages are provided.
 
 ### `JxrDecApp`
 
-Microsoft's JPEG-XR decoding tool `JxrDecApp` is required on the system's
-`PATH`. Some operating systems may have a package for this, or it can be
-[built from source](https://github.com/curasystems/jxrlib/blob/master/Makefile)
-(only `JxrDecApp` is required from this codebase, so all necessary building can
-be done using `make JxrDecApp`).
+Microsoft's JPEG-XR decoding tool `JxrDecApp` is required by the batch
+processing scripts on the system's `PATH`. Some operating systems may have a
+package for this, or it can be [built from
+source](https://github.com/curasystems/jxrlib/blob/master/Makefile) (only
+`JxrDecApp` is required from this codebase, so all necessary building can be
+done using `make JxrDecApp`).
+
+### Compiler
+
+The build system for `czinspect` assumes you are using a reasonably recent
+version of GCC or Clang which exposes the `__BYTE_ORDER__` macro. Note that on
+OpenBSD systems this may require installing a newer compiler from packages if
+you are using a system where the default base compiler is still GCC 4.2.1.
 
 ## Building
 
