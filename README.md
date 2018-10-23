@@ -57,6 +57,11 @@ source](https://github.com/curasystems/jxrlib/blob/master/Makefile) (only
 `JxrDecApp` is required from this codebase, so all necessary building can be
 done using `make JxrDecApp`).
 
+### `czinspect`
+
+The `czinspect` application requires the used of the `xxd(1)` tool, which is
+distributed with `vim`, for processing application usage messages.
+
 ### Compiler
 
 The build system for `czinspect` assumes you are using a reasonably recent
