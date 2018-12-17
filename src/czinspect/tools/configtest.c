@@ -1,8 +1,6 @@
-#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 /* simple config test program */
 
