@@ -49,14 +49,14 @@ int xfallocate(int fd, size_t sz) {
     return 0;
 }
 
-uint32_t get_subsample_level(lzbuf dims, uint32_t ndims) {
+uint32_t get_subsample_level(lzbuf *dims) {
     /* we only filter on the X and Y dimensions */
     char x[4] = "X\0\0\0";
     char y[4] = "Y\0\0\0";
     uint32_t xratio = 0, yratio = 0;
     struct czi_subblock_dimentry *entry;
 
-    for (uint32_t i = 0; i < ndims; i++) {
+    for (uint32_t i = 0; i < lzbuf_elems(struct czi_subblock_dimentry, dims); i++) {
         entry = &lzbuf_get(struct czi_subblock_dimentry, dims, i);
         if (memcmp(entry->dimension, x, 4) == 0) {
             if (xratio) {
@@ -91,23 +91,23 @@ uint32_t get_subsample_level(lzbuf dims, uint32_t ndims) {
     return xratio;
 }
 
-static void scan_res(lzbuf dims, uint32_t ndims, lzbuf ints, uint32_t *nints) {
+static void scan_res(lzbuf *dims, lzbuf *ints) {
     uint32_t res;
+    size_t ilen;
 
-    res = get_subsample_level(dims, ndims);
+    res = get_subsample_level(dims);
     if (res == 0)
         return;
 
-    for (uint32_t i = 0; i < *nints; i++) {
+    for (uint32_t i = 0; i < lzbuf_elems(uint32_t, ints); i++) {
         if (res == lzbuf_get(uint32_t, ints, i))
             return;
     }
 
-    if (*nints >= ints->len)
-        lzbuf_grow(uint32_t, ints);
+    ilen = lzbuf_elems(uint32_t, ints);
 
-    lzbuf_get(uint32_t, ints, *nints) = res;
-    *nints += 1;
+    lzbuf_setlen(uint32_t, ints, ilen + 1);
+    lzbuf_get(uint32_t, ints, ilen) = res;
     
     return;
 }
@@ -115,12 +115,12 @@ static void scan_res(lzbuf dims, uint32_t ndims, lzbuf ints, uint32_t *nints) {
 /* scan a .czi file for subsampling levels. the mapping context provided must
  * point to the beginning of the ZISRAWDIRECTORY segment and the dynamic buffer
  * will be used for storing uint32_t */
-int make_reslist(struct map_ctx *c, lzbuf list, uint32_t *num) {
+int make_reslist(struct map_ctx *c, lzbuf *list) {
     struct czi_seg_header head;
     struct czi_directory dir;
     struct czi_subblock_direntry sdir;
     struct czi_subblock_dimentry *entry;
-    lzbuf dimensions;
+    lzbuf *dimensions;
 
     if (czi_read_sh(c, &head) == -1)
         return fwarnx1("could not read segment header"), -1;
@@ -135,7 +135,7 @@ int make_reslist(struct map_ctx *c, lzbuf list, uint32_t *num) {
         return fwarnx1("directory entry segment contains no entries"), -1;
 
     dimensions = lzbuf_new(struct czi_subblock_dimentry);
-    *num = 0;
+    lzbuf_setlen(uint32_t, list, 0);
     
     for (uint32_t i = 0; i < dir.entry_count; i++) {
         if (czi_read_sblk_direntry(c, &sdir) == -1)
@@ -146,8 +146,7 @@ int make_reslist(struct map_ctx *c, lzbuf list, uint32_t *num) {
             continue;
         }
 
-        while (lzbuf_elems(struct czi_subblock_dimentry, dimensions) < sdir.dimension_count)
-            lzbuf_grow(struct czi_subblock_dimentry, dimensions);
+        lzbuf_setlen(struct czi_subblock_dimentry, dimensions, sdir.dimension_count);
 
         for (uint32_t j = 0; j < sdir.dimension_count; j++) {
             entry = &lzbuf_get(struct czi_subblock_dimentry, dimensions, j);
@@ -156,12 +155,12 @@ int make_reslist(struct map_ctx *c, lzbuf list, uint32_t *num) {
                 return fwarnx1("could not read subblock dimension entries"), -1;
         }
         
-        scan_res(dimensions, sdir.dimension_count, list, num);
+        scan_res(dimensions, list);
 
         lzbuf_zero(dimensions);
     }
 
     lzbuf_free(dimensions);
-    
+
     return 0;
 }
