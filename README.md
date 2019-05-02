@@ -137,6 +137,6 @@ get_region -i "all-extracted" -l 3030 -u 2929 -r 3153 -d 3718 -o "my-region.png"
 
 ## Credits
 
-This code is actively developed by David Miller and Tom Harley,
+This code is actively developed by Molly Miller and Tom Harley,
 and is based on work by Calum Duff for a project with a team including
 Johannes Weck, Hafeez Abdul Rehaman and Josh Lee.

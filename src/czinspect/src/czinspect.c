@@ -1,7 +1,7 @@
 /*
  * Carl Zeiss CZI file format inspection utility.
  *
- * Written by David Miller, based on prior programs written by David Miller and
+ * Written by Molly Miller, based on prior programs written by David Miller and
  * Callum Duff.
  */
 
