@@ -39,8 +39,11 @@ static size_t def_chunklen;
 
 /* configure memory-mapped file code */
 int map_configure(struct config *cfg) {
-    if ((page_size = sysconf(_SC_PAGESIZE)) == -1)
+    long sysconf_pagesize = sysconf(_SC_PAGESIZE);
+    if (sysconf_pagesize == -1)
         return 0;
+
+    page_size = (size_t) sysconf_pagesize;
     
     if (cfg->page_multiplier != 0)
         def_chunklen = cfg->page_multiplier * page_size;

@@ -10,7 +10,7 @@ CCOBJ = ${CCSRC:.c=.o}
 HEADERS = $(wildcard src/*.h) src/compat/compat.h
 OBJECTS = $(CCOBJ)
 
-CFLAGS += -std=c99 -Wall -Werror
+CFLAGS += -std=c99 -Wall -Wextra -Werror
 
 ifeq ($(strip $(BSD)),)
 CCSRC += $(wildcard src/compat/*.c)

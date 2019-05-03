@@ -17,11 +17,12 @@ char *_xstrdup(const char *, char *);
 /* Lazily allocated string structure; inspired by djb's stralloc and
  * skarnet's genalloc */
 struct lzstring_s {
-    char *data;   /* pointer to data */
-    size_t len;   /* size of allocated data area */
+    char *data;    /* pointer to data */
+    size_t len;    /* number of bytes used in allocated data area */
+    size_t alen;   /* size of allocated data area */
 };
-typedef struct lzstring_s * lzstring;
-typedef lzstring lzbuf;
+typedef struct lzstring_s lzstring;
+typedef struct lzstring_s lzbuf;
 
 #define LZS_DEFAULT_LEN  40 /* default length of allocated strings */
 #define LZB_DEFAULT_LEN   8 /* default length of allocated buffer arrays */
@@ -39,18 +40,21 @@ typedef lzstring lzbuf;
 #define lzbuf_grow(type, b)    _lzstr_resize(__func__, b, (b)->len * 2, sizeof(type))
 
 #define lzstr_cat(l, s)        _lzstr_cat(__func__, l, s)
+#define lzstr_setlen(b, l)     _lzstr_setlen(__func__, b, l, sizeof(char))
+#define lzbuf_setlen(t, b, l)  _lzstr_setlen(__func__, b, l, sizeof(t))
 
 #define lzstr_free(s)          _lzstr_free(s)
 #define lzbuf_free(s)          _lzstr_free(s)
 
-lzstring _lzstr_new(const char *, size_t, size_t);
-void _lzstr_zero(lzstring);
-void _lzstr_resize(const char *, lzstring, size_t, size_t);
-void _lzstr_free(lzstring);
+lzstring *_lzstr_new(const char *, size_t, size_t);
+void _lzstr_zero(lzstring *);
+void _lzstr_resize(const char *, lzstring *, size_t, size_t);
+void _lzstr_setlen(const char *, lzstring *, size_t, size_t);
+void _lzstr_free(lzstring *);
 
-void _lzstr_cat(const char *, lzstring, char *);
+void _lzstr_cat(const char *, lzstring* , char *);
 
-int lzsprintf(lzstring, const char *, ...);
-int lzvprintf(lzstring, const char *, va_list);
+int lzsprintf(lzstring *, const char *, ...);
+int lzvprintf(lzstring *, const char *, va_list);
 
 #endif /* _ALLOC_H */

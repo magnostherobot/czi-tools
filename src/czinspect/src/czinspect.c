@@ -1,7 +1,7 @@
 /*
  * Carl Zeiss CZI file format inspection utility.
  *
- * Written by David Miller, based on prior programs written by David Miller and
+ * Written by Molly Miller, based on prior programs written by David Miller and
  * Callum Duff.
  */
 
@@ -203,7 +203,7 @@ static void parse_opt_check(int opt) {
 static void check_ops() {
     uint8_t num = 0;
 
-    for (int i = 0; i < sizeof(uint8_t) * 8; i++)
+    for (int i = 0; i < (int)sizeof(uint8_t) * 8; i++)
         num += (cfg.operation >> i) % 2;
 
     if (num > 1)

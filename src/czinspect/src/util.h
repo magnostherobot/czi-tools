@@ -10,7 +10,7 @@
 
 int xfallocate(int, size_t);
 
-uint32_t get_subsample_level(lzbuf, uint32_t);
-int make_reslist(struct map_ctx *, lzbuf, uint32_t *);
+uint32_t get_subsample_level(lzbuf *);
+int make_reslist(struct map_ctx *, lzbuf *);
 
 #endif /* _UTIL_H */

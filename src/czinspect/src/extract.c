@@ -39,9 +39,9 @@ static uint8_t sblk_opts;
 static uint8_t ext_opts;
 static uint8_t filt_opts;
 static uint32_t filterlevel;
-static lzstring fname;
-static lzstring suffix;
-static lzbuf dimensions;
+static lzstring *fname;
+static lzstring *suffix;
+static lzbuf *dimensions;
 
 static void set_subopt(uint8_t opt) {
     if ((sblk_opts & EXT_S_ALL) == EXT_S_ALL)
@@ -167,7 +167,7 @@ static void extract_attachments(struct map_ctx *c, uint64_t pos) {
     struct czi_attach_entry entry;
     struct czi_attach att;
     size_t offset;
-    lzstring aname;
+    lzstring *aname;
 
     if (map_seek(c, pos, MAP_SET) == -1)
         ferrx("could not seek to file offset %" PRIu64 " to read attachment directory segment", pos);
@@ -220,9 +220,9 @@ static void extract_attachments(struct map_ctx *c, uint64_t pos) {
     return;
 }
 
-static void make_suffix(lzstring str, lzbuf diments, uint32_t count) {
+static void make_suffix(lzstring *str, lzbuf *diments) {
     char dimname[5];
-    lzstring tmp;
+    lzstring *tmp;
     struct czi_subblock_dimentry *dims;
 
     dims = &lzbuf_get(struct czi_subblock_dimentry, diments, 0);
@@ -234,12 +234,12 @@ static void make_suffix(lzstring str, lzbuf diments, uint32_t count) {
     lzsprintf(str, "%sp%" PRId32 "s%" PRIu32 "r%" PRIu32, dimname, dims->start,
               dims->size, czi_subblock_dim_ratio(dims));
 
-    if (count == 1)
+    if (lzbuf_elems(struct czi_subblock_dimentry, diments) == 1)
         return;
 
     tmp = lzstr_new();
     
-    for (uint32_t i = 1; i < count; i++) {
+    for (uint32_t i = 1; i < lzbuf_elems(struct czi_subblock_dimentry, diments); i++) {
         dims = &lzbuf_get(struct czi_subblock_dimentry, diments, i);
         
         lzstr_zero(tmp);
@@ -278,9 +278,8 @@ static void extract_subblock(struct map_ctx *c) {
         fwarnx1("segment has no dimension entries, skipping segment");
         return;
     }
-    
-    while (lzbuf_elems(struct czi_subblock_dimentry, dimensions) < sblk.dir_entry.dimension_count)
-        lzbuf_grow(struct czi_subblock_dimentry, dimensions);
+
+    lzbuf_setlen(struct czi_subblock_dimentry, dimensions, sblk.dir_entry.dimension_count);
 
     uint32_t i;
     for (i = 0; i < sblk.dir_entry.dimension_count; i++) {
@@ -290,7 +289,7 @@ static void extract_subblock(struct map_ctx *c) {
     }
 
     if (filterlevel != 0) {
-        level = get_subsample_level(dimensions, sblk.dir_entry.dimension_count);
+        level = get_subsample_level(dimensions);
         if (level != filterlevel) {
             lzbuf_zero(dimensions);
             return;
@@ -304,7 +303,7 @@ static void extract_subblock(struct map_ctx *c) {
         if (map_seek(c, offset, MAP_FORW) == -1)
             ferrx("cannot seek forwards %zu bytes", offset);
     
-    make_suffix(suffix, dimensions, sblk.dir_entry.dimension_count);
+    make_suffix(suffix, dimensions);
 
     if (sblk.metadata_size != 0) {
         if (sblk_opts & EXT_S_META) {
@@ -403,8 +402,7 @@ static void extract_sblk_directory(struct map_ctx *c, uint64_t pos) {
 }
 
 static void setup_filterlevel(struct config *cfg, struct map_ctx *c, uint64_t dirpos) {
-    lzbuf reslist;
-    uint32_t rnum = 0;
+    lzbuf *reslist;
     uint32_t max = 0;
     uint32_t l;
 
@@ -417,12 +415,12 @@ static void setup_filterlevel(struct config *cfg, struct map_ctx *c, uint64_t di
 
     reslist = lzbuf_new(uint32_t);
 
-    if (make_reslist(c, reslist, &rnum) == -1)
+    if (make_reslist(c, reslist) == -1)
         ferrx1("could not scan for subsampling levels in input file");
 
 
     if (filt_opts & EXT_FI_FFUZZ) {
-        for (uint32_t i = 0; i < rnum; i++) {
+        for (uint32_t i = 0; i < lzbuf_elems(uint32_t, reslist); i++) {
             l = lzbuf_get(uint32_t, reslist, i);
 
             if (l <= cfg->filter && l > max) {
@@ -431,7 +429,7 @@ static void setup_filterlevel(struct config *cfg, struct map_ctx *c, uint64_t di
             }
         }
     } else {
-        for (uint32_t i = 0; i < rnum; i++)
+        for (uint32_t i = 0; i < lzbuf_elems(uint32_t, reslist); i++)
             if (lzbuf_get(uint32_t, reslist, i) == cfg->filter)
                 filterlevel = cfg->filter;
     }
